@@ -1,0 +1,12 @@
+[mongodb]
+# URI to your MongoDB server without quotations
+uri = 
+
+# Name of the database to use server without quotations
+database = 
+
+#collection with station info:
+stations_info_collection = 
+buoy_01_collection = 
+f1_meteo_collection = 
+fidas_collection = 

@@ -1,0 +1,12 @@
+# Ignore all __pycache__ directories
+__pycache__/
+
+# Ignore all virtual environment folders named venv
+venv/
+
+#ignore all logs
+logs/
+
+helpers/
+
+config/config.ini
