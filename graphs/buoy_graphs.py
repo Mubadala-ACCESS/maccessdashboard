@@ -1,7 +1,7 @@
 # graphs/buoy_graphs.py
 
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
@@ -19,6 +19,9 @@ config.read(config_path)
 MONGO_URI          = config.get('mongodb', 'uri')
 DB_NAME            = config.get('mongodb', 'database')
 BUOY_01_COLLECTION = config.get('mongodb', 'buoy_01_collection')
+
+# Offset for Gulf Standard Time
+GST_OFFSET = timedelta(hours=4)
 
 
 class BuoyGraphs:
@@ -65,12 +68,6 @@ class BuoyGraphs:
             "O2":                  "Oxygen (μM/L)",
             "chlorophyll":         "Chlorophyll (µg/L)"
         }
-        self.param_colors = {
-            "CTD_tmp":     "blue",
-            "conductivity":"orange",
-            "O2":          "red",
-            "chlorophyll": "green"
-        }
 
     def _utc_now(self) -> datetime:
         return datetime.utcnow()
@@ -81,6 +78,9 @@ class BuoyGraphs:
         selected_params: list[str],
         agg=None
     ) -> pd.DataFrame:
+        """
+        Returns a DataFrame with a 'datetime' column shifted to GST (UTC+04:00).
+        """
         now = self._utc_now()
         pipeline = []
         if date_range in self.deltas:
@@ -90,12 +90,21 @@ class BuoyGraphs:
         docs = list(self.collection.aggregate(pipeline, allowDiskUse=True))
         if not docs:
             return pd.DataFrame()
+
         df = pd.DataFrame(docs)[["datetime"] + selected_params]
+        # shift UTC→GST
+        df["datetime"] = df["datetime"] + GST_OFFSET
+
+        # drop zeros
         for p in selected_params:
             df = df[df[p] != 0]
         return df
 
     def fetch_profiles(self, date_range: str) -> tuple[list[datetime], list[dict]]:
+        """
+        Fetches and returns (times, docs), where times are shifted to GST.
+        Monthly+ ranges are binned & averaged.
+        """
         now    = self._utc_now()
         cutoff = now - self.deltas.get(date_range, relativedelta())
 
@@ -110,17 +119,19 @@ class BuoyGraphs:
             {"$project": proj},
         ]
         docs = list(self.collection.aggregate(pipeline, allowDiskUse=True))
+        # filter out empty depths
         docs = [d for d in docs if d["depth"] and any(v != 0 for v in d["depth"])]
         if not docs:
-            fb = self.collection.find_one({}, projection=proj, sort=[("datetime",1)])
-            if fb and fb["depth"] and any(v!=0 for v in fb["depth"]):
-                return [fb["datetime"]], [fb]
+            fb = self.collection.find_one({}, projection=proj, sort=[("datetime", 1)])
+            if fb and fb["depth"] and any(v != 0 for v in fb["depth"]):
+                return ([fb["datetime"] + GST_OFFSET], [fb])
             return [], []
 
-        times = [d["datetime"] for d in docs]
+        # apply GST offset to times
+        times = [d["datetime"] + GST_OFFSET for d in docs]
 
         # bin & average for monthly+ ranges
-        if date_range in ("1M","3M","6M","1Y"):
+        if date_range in ("1M", "3M", "6M", "1Y"):
             return self._aggregate_profiles_by_period(date_range, times, docs)
 
         return times, docs
@@ -131,6 +142,11 @@ class BuoyGraphs:
         times: list[datetime],
         docs: list[dict]
     ) -> tuple[list[datetime], list[dict]]:
+        """
+        Bin monthly+ ranges into:
+          1M → 3H, 3M → 6H, 6M → 12H, 1Y → 24H
+        Times input are already GST‐shifted datetimes.
+        """
         bin_hours = {"1M": 3, "3M": 6, "6M": 12, "1Y": 24}
         df = pd.DataFrame({"datetime": pd.to_datetime(times), "doc": docs})
         freq = f"{bin_hours[date_range]}H"
@@ -138,31 +154,30 @@ class BuoyGraphs:
 
         agg_times, agg_docs = [], []
         for bin_time, group in df.groupby("bin"):
-            group_docs   = list(group["doc"])
+            group_docs = list(group["doc"])
             depth_length = len(group_docs[0]["depth"])
-            agg = {"datetime": bin_time.to_pydatetime(),
-                   "depth":    group_docs[0]["depth"]}
-
+            agg = {
+                "datetime": bin_time.to_pydatetime(),
+                "depth":    group_docs[0]["depth"]
+            }
             for param in self.profile_params:
                 arrays = []
                 for gd in group_docs:
                     vals = gd.get(param, [])
-                    # pad with None rather than 0 for missing
                     if len(vals) < depth_length:
                         vals = vals + [None] * (depth_length - len(vals))
                     else:
                         vals = vals[:depth_length]
-                    # convert None→nan, keep real zeros masked
-                    arr = [np.nan if v is None or v == 0 else float(v) for v in vals]
+                    # map missing → np.nan, keep real zeros masked
+                    arr = [np.nan if (v is None) else float(v) for v in vals]
                     arrays.append(arr)
-
                 arr2d = np.vstack(arrays)
-                # compute mean ignoring nan
+                arr2d[arr2d == 0] = np.nan
                 means = np.nanmean(arr2d, axis=0)
-                # map nan→None so heatmap shows gaps
+                # nans → None so heatmap shows gaps
                 agg[param] = [None if math.isnan(v) else v for v in means.tolist()]
 
-            agg_times.append(bin_time.to_pydatetime())
+            agg_times.append(batch_time:=bin_time.to_pydatetime())
             agg_docs.append(agg)
 
         return agg_times, agg_docs
@@ -181,16 +196,18 @@ class BuoyGraphs:
                     step = math.ceil(len(dfi) / max_pts)
                     dfi = dfi.iloc[::step]
                 fig = go.Figure(go.Scattergl(
-                    x=dfi["datetime"], y=dfi[p],
-                    mode="markers", marker=dict(size=6),
+                    x=dfi["datetime"],
+                    y=dfi[p],
+                    mode="markers",
+                    marker=dict(size=6),
                     name=self.param_labels[p]
                 ))
                 fig.update_layout(
                     title=self.param_labels[p],
-                    xaxis_title="DateTime (UTC)",
+                    xaxis_title="Time (GST, UTC+04:00)",
                     yaxis_title=self.param_labels[p],
                     template="plotly_white",
-                    margin={"l":40,"r":20,"t":40,"b":40},
+                    margin={"l": 40, "r": 20, "t": 40, "b": 40},
                     autosize=True
                 )
                 figs.append(fig)
@@ -215,11 +232,17 @@ class BuoyGraphs:
         zmin, zmax = (min(flat), max(flat)) if flat else (0, 1)
 
         fig = go.Figure(go.Heatmap(
-            x=times, y=depths, z=z,
-            colorscale="Viridis", zmin=zmin, zmax=zmax,
-            xgap=1, ygap=1, showscale=True,
+            x=times,
+            y=depths,
+            z=z,
+            colorscale="Viridis",
+            zmin=zmin,
+            zmax=zmax,
+            xgap=1,
+            ygap=1,
+            showscale=True,
             hovertemplate=(
-                "Time: %{x|%Y-%m-%d %H:%M UTC}<br>"
+                "Time (GST): %{x|%Y-%m-%d %H:%M}<br>"
                 "Depth: %{y:.2f} m<br>"
                 f"{self.param_labels[param]}: %{{z:.2f}}<extra></extra>"
             )
@@ -227,8 +250,9 @@ class BuoyGraphs:
         fig.update_layout(
             title=self.param_labels[param],
             yaxis=dict(autorange="reversed"),
+            xaxis_title="Time (GST, UTC+04:00)",
             template="plotly_white",
-            margin={"l":40,"r":20,"t":40,"b":40},
+            margin={"l": 40, "r": 20, "t": 40, "b": 40},
             autosize=True
         )
         return fig

@@ -110,7 +110,7 @@ class meteostationGraphs:
                         'xanchor': 'center',
                         'yanchor': 'top'
                     },
-                    xaxis_title="Timestamp",
+                    xaxis_title="UTC+04:00 (GST)",
                     yaxis_title=self._format_param_label(param),
                     margin={"l": 40, "r": 40, "t": 40, "b": 40},
                     template="plotly_white",
