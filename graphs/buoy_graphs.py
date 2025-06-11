@@ -27,7 +27,7 @@ BUOY_01_COLLECTION = config.get('mongodb', 'buoy_01_collection')
 # Offset for Gulf Standard Time
 GST_OFFSET = timedelta(hours=4)
 
-# Buoy coordinates for Absolute Salinity calculation
+# Buoy coordinates for Absolute Salinity calculation (used internally for density)
 BUOY_LAT = 24.992
 BUOY_LON = 54.350
 
@@ -60,7 +60,7 @@ class BuoyGraphs:
         ]
         self.profile_params = [
             "CTD_tmp", "conductivity", "O2", "chlorophyll",
-            "salinity_practical", "salinity_absolute", "density"
+            "salinity_practical", "density"
         ]
 
         # Labels & colours
@@ -74,8 +74,7 @@ class BuoyGraphs:
             "conductivity":        "Conductivity (mmho/cm)",
             "O2":                  "Oxygen (µM/L)",
             "chlorophyll":         "Chlorophyll (µg/L)",
-            "salinity_practical":  "Practical Salinity (PSU)",
-            "salinity_absolute":   "Absolute Salinity (g/kg)",
+            "salinity_practical":  "Salinity (PSU)",
             "density":             "Density (kg/m³)"
         }
         self.param_colors = {
@@ -84,7 +83,6 @@ class BuoyGraphs:
             "O2":                  "red",
             "chlorophyll":         "green",
             "salinity_practical":  "teal",
-            "salinity_absolute":   "purple",
             "density":             "black"
         }
 
@@ -159,7 +157,7 @@ class BuoyGraphs:
             # Practical Salinity
             SP = gsw.SP_from_C(conds, temps, depths)
 
-            # Absolute Salinity
+            # Absolute Salinity (internal for CT/density)
             SA = gsw.SA_from_SP(SP, depths, lon=BUOY_LON, lat=BUOY_LAT)
 
             # Conservative Temperature
@@ -169,7 +167,6 @@ class BuoyGraphs:
             rho = gsw.rho(SA, CT, depths)
 
             trimmed["salinity_practical"] = SP.tolist()
-            trimmed["salinity_absolute"]  = SA.tolist()
             trimmed["density"]            = rho.tolist()
 
             processed.append(trimmed)
