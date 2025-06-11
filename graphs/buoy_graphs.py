@@ -1,14 +1,17 @@
-# graphs/buoy_graphs.py
+#!/usr/bin/env python3
 
-from pymongo import MongoClient
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import configparser
 import os
 import math
+from datetime import datetime, timedelta
+
+import pandas as pd
+import numpy as np
+import gsw
+import plotly.graph_objects as go
+
+from pymongo import MongoClient
+from dateutil.relativedelta import relativedelta
+import configparser
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -23,6 +26,10 @@ BUOY_01_COLLECTION = config.get('mongodb', 'buoy_01_collection')
 
 # Offset for Gulf Standard Time
 GST_OFFSET = timedelta(hours=4)
+
+# Buoy coordinates for Absolute Salinity calculation
+BUOY_LAT = 24.992
+BUOY_LON = 54.350
 
 
 class BuoyGraphs:
@@ -47,12 +54,17 @@ class BuoyGraphs:
         }
 
         # Scalar vs. profile fields
-        self.scalar_params  = ["wind_speed","wind_direction",
-                               "air_temp","barometric_pressure","albedo"]
-        self.profile_params = ["CTD_tmp","conductivity","O2","chlorophyll"]
+        self.scalar_params  = [
+            "wind_speed", "wind_direction",
+            "air_temp", "barometric_pressure", "albedo"
+        ]
+        self.profile_params = [
+            "CTD_tmp", "conductivity", "O2", "chlorophyll",
+            "salinity_practical", "salinity_absolute", "density"
+        ]
 
         # Labels & colours
-        self.param_labels  = {
+        self.param_labels = {
             "wind_speed":          "Wind Speed (m/s)",
             "wind_direction":      "Wind Direction (°)",
             "air_temp":            "Air Temperature (°C)",
@@ -61,13 +73,19 @@ class BuoyGraphs:
             "CTD_tmp":             "CTD Temperature (°C)",
             "conductivity":        "Conductivity (mmho/cm)",
             "O2":                  "Oxygen (µM/L)",
-            "chlorophyll":         "Chlorophyll (µg/L)"
+            "chlorophyll":         "Chlorophyll (µg/L)",
+            "salinity_practical":  "Practical Salinity (PSU)",
+            "salinity_absolute":   "Absolute Salinity (g/kg)",
+            "density":             "Density (kg/m³)"
         }
-        self.param_colors  = {
-            "CTD_tmp":     "blue",
-            "conductivity":"orange",
-            "O2":          "red",
-            "chlorophyll": "green"
+        self.param_colors = {
+            "CTD_tmp":             "blue",
+            "conductivity":        "orange",
+            "O2":                  "red",
+            "chlorophyll":         "green",
+            "salinity_practical":  "teal",
+            "salinity_absolute":   "purple",
+            "density":             "black"
         }
 
     def _utc_now(self) -> datetime:
@@ -81,11 +99,9 @@ class BuoyGraphs:
         pipeline = []
         if date_range in self.deltas:
             cutoff = now - self.deltas[date_range]
-            pipeline.append(
-                {"$match": {"datetime": {"$gte": cutoff}}})
+            pipeline.append({"$match": {"datetime": {"$gte": cutoff}}})
         pipeline.append({"$sort": {"datetime": 1}})
-        docs = list(self.collection.aggregate(
-            pipeline, allowDiskUse=True))
+        docs = list(self.collection.aggregate(pipeline, allowDiskUse=True))
         if not docs:
             return pd.DataFrame()
 
@@ -99,12 +115,11 @@ class BuoyGraphs:
                        date_range: str
                        ) -> tuple[list[datetime], list[dict]]:
         now    = self._utc_now()
-        cutoff = now - self.deltas.get(date_range,
-                                        relativedelta())
+        cutoff = now - self.deltas.get(date_range, relativedelta())
 
         # Single aggregation
         proj = {"_id": 0, "datetime": 1, "depth": 1}
-        for p in self.profile_params:
+        for p in ["CTD_tmp", "conductivity", "O2", "chlorophyll"]:
             proj[p] = 1
 
         pipeline = [
@@ -112,41 +127,59 @@ class BuoyGraphs:
             {"$sort":   {"datetime": 1}},
             {"$project": proj}
         ]
-        raw = list(self.collection.aggregate(
-            pipeline, allowDiskUse=True))
+        raw = list(self.collection.aggregate(pipeline, allowDiskUse=True))
 
-        # Filter out completely zero‐depth docs
-        raw = [d for d in raw
-               if d["depth"] and any(v != 0 for v in d["depth"])]
+        # Filter out zero‐depth docs
+        raw = [d for d in raw if d["depth"] and any(v != 0 for v in d["depth"])]
         if not raw:
             fb = self.collection.find_one(
-                {}, projection=proj,
-                sort=[("datetime",1)]
+                {}, projection=proj, sort=[("datetime",1)]
             )
             if fb and any(v!=0 for v in fb["depth"]):
                 return [fb["datetime"]+GST_OFFSET], [fb]
             return [], []
 
-        # **TRIM ZERO DEPTHS** and corresponding profile values
+        # Trim and compute new metrics
         processed = []
         for d in raw:
             mask = [depth>0 for depth in d["depth"]]
-            new_depth = [dep for dep,m in zip(d["depth"], mask) if m]
-            trimmed = {"datetime": d["datetime"],
-                       "depth":     new_depth}
-            for p in self.profile_params:
-                trimmed[p] = [
-                    val for val,m in zip(d[p], mask) if m
-                ]
+            trimmed = {
+                "datetime": d["datetime"],
+                "depth":    [dep for dep,m in zip(d["depth"], mask) if m]
+            }
+            # original profiles
+            for p in ["CTD_tmp", "conductivity", "O2", "chlorophyll"]:
+                trimmed[p] = [val for val,m in zip(d[p], mask) if m]
+
+            # Compute salinity & density arrays
+            depths = np.array(trimmed["depth"])
+            conds  = np.array(trimmed["conductivity"])
+            temps  = np.array(trimmed["CTD_tmp"])
+
+            # Practical Salinity
+            SP = gsw.SP_from_C(conds, temps, depths)
+
+            # Absolute Salinity
+            SA = gsw.SA_from_SP(SP, depths, lon=BUOY_LON, lat=BUOY_LAT)
+
+            # Conservative Temperature
+            CT = gsw.CT_from_t(SA, temps, depths)
+
+            # In-situ density
+            rho = gsw.rho(SA, CT, depths)
+
+            trimmed["salinity_practical"] = SP.tolist()
+            trimmed["salinity_absolute"]  = SA.tolist()
+            trimmed["density"]            = rho.tolist()
+
             processed.append(trimmed)
 
         # Shift to GST
-        times = [d["datetime"]+GST_OFFSET for d in processed]
+        times = [d["datetime"] + GST_OFFSET for d in processed]
 
-        # Bin & average for monthly+ ranges
+        # Bin & average for longer ranges
         if date_range in ("1W","1M","3M","6M","1Y"):
-            return self._aggregate_profiles_by_period(
-                date_range, times, processed)
+            return self._aggregate_profiles_by_period(date_range, times, processed)
 
         return times, processed
 
@@ -155,67 +188,40 @@ class BuoyGraphs:
                                       times: list[datetime],
                                       docs: list[dict]
                                       ) -> tuple[list[datetime], list[dict]]:
-        # Bin widths
-        bin_hours = {"1W":3,"1M": 6, "3M": 12, "6M": 24, "1Y": 48}
+        bin_hours = {"1W":3,"1M":6,"3M":12,"6M":24,"1Y":48}
         width = timedelta(hours=bin_hours[date_range])
 
-        # Floor to bins
-        df = pd.DataFrame(
-            {"datetime": pd.to_datetime(times),
-             "doc": docs})
-        df["bin"] = df["datetime"].dt.floor(
-            f"{bin_hours[date_range]}H")
+        df = pd.DataFrame({"datetime": pd.to_datetime(times), "doc": docs})
+        df["bin"] = df["datetime"].dt.floor(f"{bin_hours[date_range]}H")
+        grouped = {b:list(g["doc"]) for b,g in df.groupby("bin")}
 
-        grouped = {b: list(g["doc"])
-                   for b,g in df.groupby("bin")}
-
-        # Full bin list
         start, end = min(grouped), max(grouped)
-        all_bins = []
+        all_bins, agg_docs = [], []
         t = start
-        while t <= end:
-            all_bins.append(t)
-            t += width
-
-        agg_times, agg_docs = [], []
         template_depth = docs[0]["depth"]
         n = len(template_depth)
 
-        for b in all_bins:
-            docs_in_bin = grouped.get(b, [])
-            if docs_in_bin:
-                agg = {"datetime": b,
-                       "depth":    template_depth}
-                for param in self.profile_params:
+        while t <= end:
+            docs_in_bin = grouped.get(t, [])
+            agg = {"datetime": t, "depth": template_depth.copy()}
+            for param in self.profile_params:
+                if docs_in_bin:
                     arrs = []
                     for gd in docs_in_bin:
-                        vals = gd[param]
-                        # pad/truncate to n
-                        if len(vals)<n:
-                            vals = vals + [None]*(n-len(vals))
-                        else:
-                            vals = vals[:n]
-                        arrs.append([
-                            np.nan if v is None else float(v)
-                            for v in vals
-                        ])
+                        vals = gd.get(param, [])
+                        vals = (vals + [None]*n)[:n]
+                        arrs.append([np.nan if v is None else float(v) for v in vals])
                     mat = np.vstack(arrs)
                     mat[mat==0] = np.nan
                     means = np.nanmean(mat, axis=0)
-                    agg[param] = [
-                        None if math.isnan(v) else v
-                        for v in means.tolist()
-                    ]
-            else:
-                agg = {"datetime": b,
-                       "depth":    template_depth}
-                for param in self.profile_params:
+                    agg[param] = [None if math.isnan(v) else v for v in means]
+                else:
                     agg[param] = [None]*n
-
-            agg_times.append(b)
+            all_bins.append(t)
             agg_docs.append(agg)
+            t += width
 
-        return agg_times, agg_docs
+        return all_bins, agg_docs
 
     def create_time_series_figures(self,
                                    df: pd.DataFrame,
@@ -224,15 +230,14 @@ class BuoyGraphs:
         figs = []
         for p in selected_params:
             if p in df.columns and not df[p].empty:
-                dfi = df[df[p]!=0]
-                if len(dfi)>50000:
+                dfi = df[df[p] != 0]
+                if len(dfi) > 50000:
                     step = math.ceil(len(dfi)/50000)
                     dfi = dfi.iloc[::step]
                 fig = go.Figure(go.Scattergl(
                     x=dfi["datetime"], y=dfi[p],
                     mode="markers",
-                    marker=dict(size=6,
-                                color=self.param_colors.get(p)),
+                    marker=dict(size=6, color=self.param_colors.get(p)),
                     name=self.param_labels[p]
                 ))
                 fig.update_layout(
@@ -254,14 +259,14 @@ class BuoyGraphs:
         depths = docs[0]["depth"]
         z = [
             [
-                None if i>=len(doc[param]) or doc[param][i]==0
+                None if i >= len(doc.get(param, [])) or doc[param][i] == 0
                 else doc[param][i]
                 for doc in docs
             ]
             for i in range(len(depths))
         ]
         flat = [v for row in z for v in row if v is not None]
-        zmin,zmax = (min(flat),max(flat)) if flat else (0,1)
+        zmin, zmax = (min(flat), max(flat)) if flat else (0, 1)
 
         fig = go.Figure(go.Heatmap(
             x=times, y=depths, z=z,
