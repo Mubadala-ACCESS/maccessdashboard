@@ -131,23 +131,30 @@ class StationMap:
                 popupAnchor=[0, -30]
             )
 
+            # both links now use btn-link styling
             if dt in ["SBNTransect", "JWCruise", "underwater_probe", "coral_reef"]:
                 base = html.A(
                     "Station Data",
                     href=f"https://nyuadmaccess.org/login?next=/dashboard?open_station={s['Station ID']}",
-                    target="_self"
+                    target="_self",
+                    className="btn btn-link",
+                    style={"padding": 0, "color": "blue"}
                 )
             elif dt == "Fidas_Palas":
                 base = html.A(
                     "Station Data",
                     href="http://10.224.41.15",
-                    target="_blank"
+                    target="_blank",
+                    className="btn btn-link",
+                    style={"padding": 0, "color": "blue"}
                 )
             else:
                 base = html.A(
                     "View All Station Data",
                     href=f"/stationdata/{dt}/{s['Station Num']}",
-                    target="_self"
+                    target="_self",
+                    className="btn btn-link",
+                    style={"padding": 0, "color": "blue"}
                 )
 
             meta_btn = html.Button(
@@ -159,7 +166,7 @@ class StationMap:
                 },
                 n_clicks=0,
                 className="btn btn-link",
-                style={"marginLeft": "10px", "padding": 0}
+                style={"marginLeft": "10px", "padding": 0,"color": "blue" }
             )
 
             popup = html.Div([

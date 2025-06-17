@@ -32,45 +32,62 @@ layout = dbc.Container([
                 dbc.CardBody([
                     html.Label("Search", style={"fontWeight": "bold"}),
                     dbc.InputGroup([
-                        dcc.Input(id="search-input", type="text",
-                                  placeholder="Search by station name or number",
-                                  debounce=True, style={"flex":"1","minWidth":0}),
-                        dbc.Button("Search", id="search-button", n_clicks=0,
-                                   style={"backgroundColor":"purple","color":"white"})
+                        dcc.Input(
+                            id="search-input",
+                            type="text",
+                            placeholder="Search by station name or number",
+                            debounce=True,
+                            style={"flex":"1","minWidth":0}
+                        ),
+                        dbc.Button(
+                            "Search",
+                            id="search-button",
+                            n_clicks=0,
+                            style={"backgroundColor":"purple","color":"white"}
+                        )
                     ], style={"display":"flex","width":"100%"}),
                     html.Br(),
                     html.Label("Privacy", style={"fontWeight": "bold"}),
-                    dcc.Dropdown(id="privacy-dropdown",
-                                 options=[
-                                     {"label":"All","value":"all"},
-                                     {"label":"Public","value":True},
-                                     {"label":"Private","value":False}
-                                 ], value="all"),
+                    dcc.Dropdown(
+                        id="privacy-dropdown",
+                        options=[
+                            {"label":"All","value":"all"},
+                            {"label":"Public","value":True},
+                            {"label":"Private","value":False}
+                        ],
+                        value="all"
+                    ),
                     html.Br(),
                     html.Label("Station Type", style={"fontWeight": "bold"}),
-                    dcc.Dropdown(id="type-dropdown",
-                                 options=[
-                                     {"label":"All","value":"all"},
-                                     {"label":"IoT Box","value":"IoTBox"},
-                                     {"label":"Meteorological Station","value":"Meteorological"},
-                                     {"label":"Buoy","value":"Buoy"},
-                                     {"label":"Fidas Palas 200S","value":"Fidas_Palas"},
-                                     {"label":"SBN Transect","value":"SBNTransect"},
-                                     {"label":"Jaywun Cruise","value":"JWCruise"},
-                                     {"label":"Underwater Probes","value":"underwater_probe"},
-                                     {"label":"Coral Reef Monitoring","value":"coral_reef"},
-                                 ], value="all"),
+                    dcc.Dropdown(
+                        id="type-dropdown",
+                        options=[
+                            {"label":"All","value":"all"},
+                            {"label":"IoT Box","value":"IoTBox"},
+                            {"label":"Meteorological Station","value":"Meteorological"},
+                            {"label":"Buoy","value":"Buoy"},
+                            {"label":"Fidas Palas 200S","value":"Fidas_Palas"},
+                            {"label":"SBN Transect","value":"SBNTransect"},
+                            {"label":"Jaywun Cruise","value":"JWCruise"},
+                            {"label":"Underwater Probes","value":"underwater_probe"},
+                            {"label":"Coral Reef Monitoring","value":"coral_reef"},
+                        ],
+                        value="all"
+                    ),
                     html.Br(),
                     html.Label("Status", style={"fontWeight": "bold"}),
-                    dcc.Dropdown(id="status-dropdown",
-                                 options=[
-                                     {"label":"All","value":"all"},
-                                     {"label":"Online","value":"Online"},
-                                     {"label":"Offline","value":"Offline"},
-                                     {"label":"Maintenance","value":"Maintenance"},
-                                     {"label":"Faulty","value":"Faulty"},
-                                     {"label":"Decommissioned","value":"Decommissioned"},
-                                 ], value="all"),
+                    dcc.Dropdown(
+                        id="status-dropdown",
+                        options=[
+                            {"label":"All","value":"all"},
+                            {"label":"Online","value":"Online"},
+                            {"label":"Offline","value":"Offline"},
+                            {"label":"Maintenance","value":"Maintenance"},
+                            {"label":"Faulty","value":"Faulty"},
+                            {"label":"Decommissioned","value":"Decommissioned"},
+                        ],
+                        value="all"
+                    ),
                 ])
             ], style={"height":"100%","border":"2px solid purple","boxShadow":"2px 2px 5px lightgrey"})
         ], width=3),
@@ -87,7 +104,9 @@ layout = dbc.Container([
     dbc.Modal([
         dbc.ModalHeader(dbc.ModalTitle("Station Metadata")),
         dbc.ModalBody(id="modal-body"),
-        dbc.ModalFooter(dbc.Button("Close", id="close-modal", n_clicks=0, className="ms-auto"))
+        dbc.ModalFooter(
+            dbc.Button("Close", id="close-modal", n_clicks=0, className="ms-auto")
+        )
     ], id="metadata-modal", is_open=False, size="lg", backdrop=True)
 ], fluid=True)
 
@@ -106,54 +125,61 @@ def update_filters(n_clicks, search_term, privacy_filter, type_filter, status_fi
 
     # name fallback
     for s in data:
-        if not s.get("Station Name") and s["Device Type"]=="IoTBox":
+        if not s.get("Station Name") and s["Device Type"] == "IoTBox":
             s["Station Name"] = f"Station {s['Station Num']}"
 
     # apply filters
     if search_term:
         term = search_term.lower()
-        data = [s for s in data
-                if term in s.get("Station Name","").lower()
-                or term == str(s.get("Station Num",""))]
-    if privacy_filter!="all":
-        data = [s for s in data if s["Privacy"]==privacy_filter]
-    if type_filter!="all":
-        data = [s for s in data if s["Device Type"]==type_filter]
-    if status_filter!="all":
-        data = [s for s in data if s["Status"]==status_filter]
+        data = [
+            s for s in data
+            if term in s.get("Station Name", "").lower()
+            or term == str(s.get("Station Num", ""))
+        ]
+    if privacy_filter != "all":
+        data = [s for s in data if s["Privacy"] == privacy_filter]
+    if type_filter != "all":
+        data = [s for s in data if s["Device Type"] == type_filter]
+    if status_filter != "all":
+        data = [s for s in data if s["Status"] == status_filter]
 
     if not data:
         return html.Div("No stations found")
+
     return station_map.create_map(data)
 
 
 @dash.callback(
     Output("metadata-modal", "is_open"),
     Output("modal-body", "children"),
-    Input({"type":"metadata-button","station":ALL,"device":ALL}, "n_clicks"),
+    Input({"type": "metadata-button", "station": ALL, "device": ALL}, "n_clicks"),
     Input("close-modal", "n_clicks"),
-    State("metadata-modal", "is_open")
+    State("metadata-modal", "is_open"),
 )
 def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
-    triggered = callback_context.triggered
-    if not triggered:
-        return is_open, no_update
-
-    prop = triggered[0]["prop_id"]
-    if prop=="close-modal.n_clicks":
+    # — guard against auto-open on page load —
+    if (not meta_clicks or sum(meta_clicks) == 0) and close_clicks == 0:
         return False, no_update
 
-    raw = prop.split(".")[0]
+    trig = callback_context.triggered[0]["prop_id"]
+    # if they clicked “Close”
+    if trig == "close-modal.n_clicks":
+        return False, no_update
+
+    # — metadata-button clicked: parse which one —
+    raw = trig.split(".")[0]
     info = json.loads(raw)
     sid, dev = info["station"], info["device"]
 
+    # fetch time-series
     df = station_map.get_station_time_series(sid, None, None)
     if df.empty:
         earliest = latest = "N/A"
     else:
         earliest = df["DateTime"].min().strftime("%Y-%m-%d %H:%M:%S")
-        latest   = df["DateTime"].max().strftime("%Y-%m-%d %H:%M:%S")
+        latest = df["DateTime"].max().strftime("%Y-%m-%d %H:%M:%S")
 
+    # build the modal body
     metadata_map = {
         "IoTBox": ["iotbox_metadata.json"],
         "Meteorological": ["meteostation_metadata.json"],
@@ -172,18 +198,22 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
         html.Hr()
     ]
 
-    files = metadata_map.get(dev, [])
     meta_dir = os.path.join(os.path.dirname(__file__), "..", "metadata")
-    for fname in files:
+    for fname in metadata_map.get(dev, []):
         path = os.path.join(meta_dir, fname)
         if not os.path.exists(path):
             continue
-        with open(path, 'r',encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             items = json.load(f)
-        title = fname.replace("_metadata.json","").replace("_"," ").title()
+
+        title = fname.replace("_metadata.json", "").replace("_", " ").title()
         body.append(html.H5(title))
+
         table = html.Table([
-            html.Thead(html.Tr([html.Th("Column"), html.Th("Descriptor"), html.Th("Units"), html.Th("Definition")])),
+            html.Thead(html.Tr([
+                html.Th("Column"), html.Th("Descriptor"),
+                html.Th("Units"), html.Th("Definition")
+            ])),
             html.Tbody([
                 html.Tr([
                     html.Td(x["column_name"]),
@@ -192,7 +222,7 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
                     html.Td(x["definition"])
                 ]) for x in items
             ])
-        ], style={"width":"100%","marginBottom":"1rem"})
+        ], style={"width": "100%", "marginBottom": "1rem"})
         body.append(table)
 
     return True, body
