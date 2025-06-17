@@ -133,13 +133,13 @@ class StationMap:
 
             if dt in ["SBNTransect", "JWCruise", "underwater_probe", "coral_reef"]:
                 base = html.A(
-                    "View All Station Data",
+                    "Station Data",
                     href=f"https://nyuadmaccess.org/login?next=/dashboard?open_station={s['Station ID']}",
                     target="_self"
                 )
             elif dt == "Fidas_Palas":
                 base = html.A(
-                    "View All Station Data",
+                    "Station Data",
                     href="http://10.224.41.15",
                     target="_blank"
                 )
@@ -151,7 +151,7 @@ class StationMap:
                 )
 
             meta_btn = html.Button(
-                "View Station Metadata",
+                "Station Metadata",
                 id={
                     "type": "metadata-button",
                     "station": s["Station ID"],
