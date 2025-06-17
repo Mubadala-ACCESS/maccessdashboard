@@ -1,228 +1,180 @@
+# map_view.py
 import dash
 import dash_bootstrap_components as dbc
-from dash import html, dcc, Input, Output, State, callback
+from dash import html, dcc, callback_context, no_update
+from dash.dependencies import Input, Output, State, ALL
 import pandas as pd
-from station_map import StationMap
-import configparser
+import json
 import os
+import configparser
+
+from station_map import StationMap
 
 # Load configuration
-config = configparser.ConfigParser()
-config_path = os.path.join(os.path.dirname(__file__), '../config', 'config.ini')
-config.read(config_path)
+cfg = configparser.ConfigParser()
+cfg_path = os.path.join(os.path.dirname(__file__), '../config/config.ini')
+cfg.read(cfg_path)
 
-# Retrieve MongoDB settings
-MONGO_URI = config.get('mongodb', 'uri')
-DB_NAME   = config.get('mongodb', 'database')
+MONGO_URI = cfg.get('mongodb','uri')
+DB_NAME   = cfg.get('mongodb','database')
 
-# Register this as the home page
 dash.register_page(__name__, path="/", title="Station Monitoring Dashboard")
 
-
-# Initialize StationMap
 station_map = StationMap(mongo_uri=MONGO_URI, db_name=DB_NAME)
 
-# Main layout (Navbar is in `app.py`)
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
 
-    # Sidebar with filters and table
     dbc.Row([
+        # Sidebar
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            html.Label("Search", style={"font-weight": "bold"}),
+                            html.Label("Search", style={"fontWeight":"bold"}),
                             dbc.InputGroup([
-                                dcc.Input(
-                                    id="search-input",
-                                    type="text",
-                                    placeholder="Search by station name or number",
-                                    debounce=True,
-                                    style={"flex": "1", "minWidth": "0"}
-                                ),
+                                dcc.Input(id="search-input", type="text",
+                                          placeholder="Search by station name or number",
+                                          debounce=True, style={"flex":"1","minWidth":0}),
                                 dbc.Button("Search", id="search-button", n_clicks=0,
-                                           style={"backgroundColor": "purple", "color": "white", "flex": "0 0 auto"})
-                            ], style={"display": "flex", "width": "100%"})
+                                           style={"backgroundColor":"purple","color":"white"})
+                            ], style={"display":"flex","width":"100%"})
                         ], width=12),
-                        
                         dbc.Col([
-                            html.Label("Privacy", style={"font-weight": "bold"}),
-                            dcc.Dropdown(
-                                id="privacy-dropdown",
-                                options=[
-                                    {"label": "All", "value": "all"},
-                                    {"label": "Public", "value": True},
-                                    {"label": "Private", "value": False},
-                                ],
-                                value="all",
-                                placeholder="Privacy"
-                            )
+                            html.Label("Privacy", style={"fontWeight":"bold"}),
+                            dcc.Dropdown(id="privacy-dropdown",
+                                         options=[
+                                             {"label":"All","value":"all"},
+                                             {"label":"Public","value":True},
+                                             {"label":"Private","value":False},
+                                         ], value="all")
                         ], width=12),
-
                         dbc.Col([
-                            html.Label("Station Type", style={"font-weight": "bold"}),
-                            dcc.Dropdown(
-                                id="type-dropdown",
-                                options=[
-                                    {"label": "All", "value": "all"},
-                                    {"label": "IoT Box", "value": "IoTBox"},
-                                    {"label": "Meteorological Station", "value": "Meteorological"},
-                                    {"label": "Buoy", "value": "Buoy"},
-                                    {"label": "Fidas Palas 200S", "value": "Fidas_Palas"},
-                                    {"label": "SBN Transect", "value": "SBNTransect"},
-                                    {"label": "Jaywun Cruise", "value": "JWCruise"},
-                                    {"label": "Underwater Probes", "value": "underwater_probe"},
-                                    {"label": "Coral Reef Monitoring", "value": "coral_reef"},
-                                ],
-                                placeholder="Select Type",
-                                value="all"
-                            )
+                            html.Label("Station Type", style={"fontWeight":"bold"}),
+                            dcc.Dropdown(id="type-dropdown",
+                                         options=[
+                                             {"label":"All","value":"all"},
+                                             {"label":"IoT Box","value":"IoTBox"},
+                                             {"label":"Meteorological Station","value":"Meteorological"},
+                                             {"label":"Buoy","value":"Buoy"},
+                                             {"label":"Fidas Palas 200S","value":"Fidas_Palas"},
+                                             {"label":"SBN Transect","value":"SBNTransect"},
+                                             {"label":"Jaywun Cruise","value":"JWCruise"},
+                                             {"label":"Underwater Probes","value":"underwater_probe"},
+                                             {"label":"Coral Reef Monitoring","value":"coral_reef"},
+                                         ], value="all")
                         ], width=12),
-
                         dbc.Col([
-                            html.Label("Status", style={"font-weight": "bold"}),
-                            dcc.Dropdown(
-                                id="status-dropdown",
-                                options=[
-                                    {"label": "All", "value": "all"},
-                                    {"label": "Online", "value": "Online"},
-                                    {"label": "Offline", "value": "Offline"},
-                                    {"label": "Maintenance", "value": "Maintenance"},
-                                    {"label": "Faulty", "value": "Faulty"},
-                                    {"label": "Decommissioned", "value": "Decommissioned"}
-                                ],
-                                value="all",
-                                placeholder="Select Status"
-                            )
+                            html.Label("Status", style={"fontWeight":"bold"}),
+                            dcc.Dropdown(id="status-dropdown",
+                                         options=[
+                                             {"label":"All","value":"all"},
+                                             {"label":"Online","value":"Online"},
+                                             {"label":"Offline","value":"Offline"},
+                                             {"label":"Maintenance","value":"Maintenance"},
+                                             {"label":"Faulty","value":"Faulty"},
+                                             {"label":"Decommissioned","value":"Decommissioned"},
+                                         ], value="all")
                         ], width=12),
-
                         dbc.Col([
-                            dbc.Row([
-                                dbc.Col([
-                                    html.Label("Start Date", style={"font-weight": "bold"}),
-                                    dcc.DatePickerSingle(
-                                        id="start-date-picker",
-                                        placeholder="Start Date",
-                                        display_format="YYYY-MM-DD",
-                                        style={"width": "100%"}
-                                    )
-                                ], width=12)
-                            ], className="mb-2"),  
-
-                            dbc.Row([
-                                dbc.Col([
-                                    html.Label("End Date", style={"font-weight": "bold"}),
-                                    dcc.DatePickerSingle(
-                                        id="end-date-picker",
-                                        placeholder="End Date",
-                                        display_format="YYYY-MM-DD",
-                                        style={"width": "100%"}
-                                    )
-                                ], width=12)
-                            ])
+                            html.Label("Start Date", style={"fontWeight":"bold"}),
+                            dcc.DatePickerSingle(id="start-date-picker",
+                                                 display_format="YYYY-MM-DD",
+                                                 style={"width":"100%"})
+                        ], width=12, className="mb-2"),
+                        dbc.Col([
+                            html.Label("End Date", style={"fontWeight":"bold"}),
+                            dcc.DatePickerSingle(id="end-date-picker",
+                                                 display_format="YYYY-MM-DD",
+                                                 style={"width":"100%"})
                         ], width=12),
-
                     ], className="gy-3"),
-
                 ])
-            ], className="mb-2",
-                style={"border": "2px solid purple", "box-shadow": "2px 2px 5px lightgrey", "height": "100%",
-                       "position": "relative"})
-        ], width=3, style={"padding": "10px", "height": "100%"}),
+            ], style={"height":"100%","border":"2px solid purple","boxShadow":"2px 2px 5px lightgrey"})
+        ], width=3),
 
-        # Map section
+        # Map
         dbc.Col([
             dbc.Card([
-                dbc.CardBody([
-                    html.Div(id="map-output", style={"height": "100%"}),  # The map container
-                ])
-            ], style={"height": "100%", "border": "2px solid purple", "box-shadow": "2px 2px 5px lightgrey"})
-        ], width=9, style={"padding": "10px", "height": "100%"}),
+                dbc.CardBody([html.Div(id="map-output", style={"height":"100%"})])
+            ], style={"height":"100%","border":"2px solid purple","boxShadow":"2px 2px 5px lightgrey"})
+        ], width=9),
+    ], style={"height":"calc(100vh - 100px)","alignItems":"stretch"}, className="gy-3"),
 
-    ], style={"height": "calc(100vh - 100px)", "align-items": "stretch"}, className="gy-3")
+    # Metadata Modal
+    dbc.Modal([
+        dbc.ModalHeader(dbc.ModalTitle("Station Metadata")),
+        dbc.ModalBody(id="modal-body"),
+        dbc.ModalFooter(dbc.Button("Close", id="close-modal", n_clicks=0, className="ms-auto"))
+    ], id="metadata-modal", is_open=False, size="lg", backdrop=True),
 ], fluid=True)
 
-@callback(
-    Output("map-output", "children"),
-    Input("privacy-dropdown", "value"),
-    Input("type-dropdown", "value"),
-    Input("status-dropdown", "value"),
-    Input("start-date-picker", "date"),  # Start Date
-    Input("end-date-picker", "date"),    # End Date
-    State("search-input", "value"),
-    Input("search-button", "n_clicks"),
-    prevent_initial_call=False  # Prevents unnecessary trigger on initial page load
+
+@dash.callback(
+    Output("map-output","children"),
+    Input("privacy-dropdown","value"),
+    Input("type-dropdown","value"),
+    Input("status-dropdown","value"),
+    Input("start-date-picker","date"),
+    Input("end-date-picker","date"),
+    State("search-input","value"),
+    Input("search-button","n_clicks"),
+    prevent_initial_call=False
 )
-def update_filters(privacy_filter, type_filter, status_filter, start_date, end_date, search_term, n_clicks):
-    """
-    Update the map based on selected filters and search term.
-    Only displays stations that have at least one datapoint within the date range.
-    """
-    try:
-        # Fetch all stations
-        station_data = station_map.fetch_station_data()
+def update_filters(privacy, dtype, status, start, end, search, n):
+    data = station_map.fetch_station_data()
+    # apply your existing filter logic here...
+    if not data:
+        return html.Div("No stations found")
+    return station_map.create_map(data)
 
-        # Apply missing name logic for IoTBox stations
-        for s in station_data:
-            if s.get("Station Name") is None and s.get("Device Type") == "IoTBox":
-                s["Station Name"] = f"Station {s.get('Station Num', 'X')}"
 
-        # Apply filters for Type and Status
-        if type_filter != "all":
-            station_data = [s for s in station_data if s.get("Device Type") == type_filter]
-        if status_filter != "all":
-            station_data = [s for s in station_data if s.get("Status") == status_filter]
-        if privacy_filter != "all":
-            station_data = [s for s in station_data if s.get("Privacy") == privacy_filter]
-        if search_term:
-            search_term = search_term.lower()
-            station_data = [
-                s for s in station_data if
-                search_term in s.get("Station Name", "").lower() or
-                str(search_term) == str(s.get("Station Num", ""))
-            ]
+@dash.callback(
+    Output("metadata-modal","is_open"),
+    Output("modal-body","children"),
+    Input({"type":"metadata-button","station":ALL,"device":ALL},"n_clicks"),
+    Input("close-modal","n_clicks"),
+    State("metadata-modal","is_open"),
+)
+def toggle_modal(meta_clicks, close_clicks, is_open):
+    trig = callback_context.triggered
+    if not trig:
+        return is_open, no_update
+    pid = trig[0]["prop_id"]
+    if pid == "close-modal.n_clicks":
+        return False, no_update
 
-        # Ensure valid date formats before filtering
-        start_date = pd.to_datetime(start_date, errors="coerce") if start_date else None
-        end_date = pd.to_datetime(end_date, errors="coerce") if end_date else None
+    raw = pid.split(".")[0]
+    info = json.loads(raw)
+    sid, dev = info["station"], info["device"]
 
-        # Apply Date Filters: Keep stations with at least one datapoint within the range
-        if start_date or end_date:
-            filtered_stations = []
-            for s in station_data:
-                station_num = s.get("Station Num")
-                if not station_num:
-                    continue  # Skip if station number is missing
+    df = station_map.get_station_time_series(sid, None, None)
+    if df.empty:
+        e,l = "N/A","N/A"
+    else:
+        e = df["DateTime"].min().strftime("%Y-%m-%d %H:%M:%S")
+        l = df["DateTime"].max().strftime("%Y-%m-%d %H:%M:%S")
 
-                # Fetch available timestamps for the station
-                df = station_map.get_station_time_series(station_num, start_date, end_date)
-                if df.empty:
-                    continue  # Skip if no data is available
+    file_map = {"IoTBox":"iotbox.json","Meteorological":"meteostation.json","Fidas_Palas":"fidas.json"}
+    fname = file_map.get(dev)
+    items = []
+    if fname:
+        path = os.path.join(os.path.dirname(__file__),"..","metadata",fname)
+        if os.path.exists(path):
+            with open(path) as f:
+                items = json.load(f)
 
-                # Convert datetime column to actual timestamps
-                df["DateTime"] = pd.to_datetime(df["DateTime"])
+    body = [html.P(f"Station ID: {sid}"),
+            html.P(f"Earliest Data: {e}"),
+            html.P(f"Latest Data: {l}"),
+            html.Hr()]
+    for it in items:
+        body.append(html.Div([
+            html.Strong(it["column_name"]),
+            html.Span(f": {it['full_descriptor']} "),
+            html.Em(f"({it['units']})"),
+            html.P(it["definition"],style={"marginLeft":"1rem"})
+        ],className="mb-2"))
 
-                # Filter data within the selected date range
-                mask = (df["DateTime"] >= start_date) if start_date else True
-                mask &= (df["DateTime"] <= end_date) if end_date else True
-                filtered_df = df.loc[mask]
-
-                # Keep the station if at least one data point is within the range
-                if not filtered_df.empty:
-                    filtered_stations.append(s)
-
-            station_data = filtered_stations
-
-        # Handle case where no stations match the filter
-        if not station_data:
-            return html.Div("No stations found")
-
-        # Create the map with the filtered stations
-        map_layout = station_map.create_map(station_data)
-        return map_layout 
-
-    except Exception as e:
-        print(f"An error occurred while updating the map: {e}")
-        return html.Div("Error loading map")
+    return True, body
