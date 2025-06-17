@@ -178,7 +178,7 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
         path = os.path.join(meta_dir, fname)
         if not os.path.exists(path):
             continue
-        with open(path) as f:
+        with open(path, 'r',encoding='utf-8') as f:
             items = json.load(f)
         title = fname.replace("_metadata.json","").replace("_"," ").title()
         body.append(html.H5(title))
