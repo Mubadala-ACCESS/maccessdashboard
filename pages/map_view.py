@@ -5,13 +5,13 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, callback_context, no_update
 from dash.dependencies import Input, Output, State, ALL
 
-import pandas as pd
 import json
 import os
 import configparser
 
 from pymongo import MongoClient
 from station_map import StationMap
+import pandas as pd
 
 # ------------------------------------------------------------------------------
 # Load configuration
@@ -20,8 +20,10 @@ cfg = configparser.ConfigParser()
 cfg_path = os.path.join(os.path.dirname(__file__), '../config/config.ini')
 cfg.read(cfg_path)
 
-MONGO_URI = cfg.get('mongodb', 'uri')
-DB_NAME   = cfg.get('mongodb', 'database')
+MONGO_URI          = cfg.get('mongodb', 'uri')
+DB_NAME            = cfg.get('mongodb', 'database')
+BUOY_COLL          = cfg.get('mongodb', 'buoy_01_collection')
+METEO_COLL         = cfg.get('mongodb', 'f1_meteo_collection')
 
 # ------------------------------------------------------------------------------
 # Human-readable display names for metadata files
@@ -233,45 +235,45 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
     station_name = entry["Station Name"] if entry else "Unknown"
     station_num  = entry["Station Num"]  if entry else None
 
-    # Determine earliest & latest for IoTBox, Buoy, Meteorological, Fidas
+    # Determine earliest & latest timestamps
     special = {"SBNTransect", "JWCruise", "underwater_probe", "coral_reef"}
-    if dev not in special and station_num is not None:
+    if dev not in special:
         client = MongoClient(MONGO_URI)
         db = client[DB_NAME]
 
-        # pick correct time field
-        time_field = "Timestamp" if dev == "Meteorological" else "datetime"
-
-        # Map device → collection name
+        # select correct collection
         if dev == "IoTBox":
             coll_name = f"station{station_num}"
         elif dev == "Buoy":
-            coll_name = f"buoy_{station_num:02d}"
+            coll_name = BUOY_COLL
         elif dev == "Meteorological":
-            coll_name = f"f{station_num}_meteostation"
+            coll_name = METEO_COLL
         elif dev == "Fidas_Palas":
             coll_name = "fidas_nyuad"
         else:
             coll_name = None
 
+        # pick correct time field
+        time_field = "Timestamp" if dev == "Meteorological" else "datetime"
+
         if coll_name and coll_name in db.list_collection_names():
             coll = db[coll_name]
-            first = coll.find_one(sort=[(time_field, 1)])
-            last  = coll.find_one(sort=[(time_field, -1)])
-            # safe extract & format
+            # only match docs that have the field
+            first = coll.find_one({time_field: {"$exists": True}}, sort=[(time_field, 1)])
+            last  = coll.find_one({time_field: {"$exists": True}}, sort=[(time_field, -1)])
+
             def fmt(doc):
                 if not doc or time_field not in doc:
                     return "N/A"
-                val = doc[time_field]
-                dt = pd.to_datetime(val)
-                return dt.strftime("%Y-%m-%d %H:%M:%S")
+                return pd.to_datetime(doc[time_field]).strftime("%Y-%m-%d %H:%M:%S")
+
             earliest = fmt(first)
             latest   = fmt(last)
         else:
             earliest = latest = "N/A"
+
     else:
-        # Fallback for special device types
-        df = station_map.get_station_time_series(station_num, None, None) if station_num is not None else pd.DataFrame()
+        df = station_map.get_station_time_series(sid, None, None)
         if df.empty:
             earliest = latest = "N/A"
         else:
