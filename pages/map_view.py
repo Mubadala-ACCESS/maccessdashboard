@@ -10,12 +10,12 @@ import json
 import os
 import configparser
 
+from pymongo import MongoClient
 from station_map import StationMap
 
 # ------------------------------------------------------------------------------
 # Load configuration
 # ------------------------------------------------------------------------------
-
 cfg = configparser.ConfigParser()
 cfg_path = os.path.join(os.path.dirname(__file__), '../config/config.ini')
 cfg.read(cfg_path)
@@ -26,7 +26,6 @@ DB_NAME   = cfg.get('mongodb', 'database')
 # ------------------------------------------------------------------------------
 # Human-readable display names for metadata files
 # ------------------------------------------------------------------------------
-
 DISPLAY_NAMES = {
     "iotbox_metadata.json":        "IoT Box",
     "meteostation_metadata.json":  "Meteorological Station",
@@ -41,15 +40,12 @@ DISPLAY_NAMES = {
 # ------------------------------------------------------------------------------
 # Register page & initialize StationMap
 # ------------------------------------------------------------------------------
-
 dash.register_page(__name__, path="/", title="Station Monitoring Dashboard")
-
 station_map = StationMap(mongo_uri=MONGO_URI, db_name=DB_NAME)
 
 # ------------------------------------------------------------------------------
 # Layout
 # ------------------------------------------------------------------------------
-
 layout = dbc.Container(
     [
         dcc.Location(id="url", refresh=False),
@@ -166,7 +162,6 @@ layout = dbc.Container(
 # ------------------------------------------------------------------------------
 # Callbacks
 # ------------------------------------------------------------------------------
-
 @dash.callback(
     Output("map-output", "children"),
     Input("search-button", "n_clicks"),
@@ -224,8 +219,6 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
         return False, no_update
 
     trigger = callback_context.triggered[0]["prop_id"]
-
-    # Close button clicked
     if trigger == "close-modal.n_clicks":
         return False, no_update
 
@@ -234,49 +227,97 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
     info = json.loads(raw)
     sid, dev = info["station"], info["device"]
 
-    # Fetch time-series data for summary
-    df = station_map.get_station_time_series(sid, None, None)
-    if df.empty:
-        earliest = latest = "N/A"
-    else:
-        earliest = df["DateTime"].min().strftime("%Y-%m-%d %H:%M:%S")
-        latest   = df["DateTime"].max().strftime("%Y-%m-%d %H:%M:%S")
+    # Fetch station list & lookup by Station ID
+    all_stations = station_map.fetch_station_data()
+    entry = next((s for s in all_stations if s["Station ID"] == sid), None)
+    station_name = entry["Station Name"] if entry else "Unknown"
+    station_num  = entry["Station Num"]  if entry else None
 
-    # Build summary section (above tabs)
+    # Determine earliest & latest for IoTBox, Buoy, Meteorological, Fidas
+    special = {"SBNTransect", "JWCruise", "underwater_probe", "coral_reef"}
+    if dev not in special and station_num is not None:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+
+        # pick correct time field
+        time_field = "Timestamp" if dev == "Meteorological" else "datetime"
+
+        # Map device → collection name
+        if dev == "IoTBox":
+            coll_name = f"station{station_num}"
+        elif dev == "Buoy":
+            coll_name = f"buoy_{station_num:02d}"
+        elif dev == "Meteorological":
+            coll_name = f"f{station_num}_meteostation"
+        elif dev == "Fidas_Palas":
+            coll_name = "fidas_nyuad"
+        else:
+            coll_name = None
+
+        if coll_name and coll_name in db.list_collection_names():
+            coll = db[coll_name]
+            first = coll.find_one(sort=[(time_field, 1)])
+            last  = coll.find_one(sort=[(time_field, -1)])
+            # safe extract & format
+            def fmt(doc):
+                if not doc or time_field not in doc:
+                    return "N/A"
+                val = doc[time_field]
+                dt = pd.to_datetime(val)
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            earliest = fmt(first)
+            latest   = fmt(last)
+        else:
+            earliest = latest = "N/A"
+    else:
+        # Fallback for special device types
+        df = station_map.get_station_time_series(station_num, None, None) if station_num is not None else pd.DataFrame()
+        if df.empty:
+            earliest = latest = "N/A"
+        else:
+            earliest = df["DateTime"].min().strftime("%Y-%m-%d %H:%M:%S")
+            latest   = df["DateTime"].max().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Build summary section
     summary_section = html.Div(
         [
             html.H5("Summary"),
-            html.P(f"Station ID: {sid}"),
+            html.P(f"Station Name: {station_name}"),
             html.P(f"Earliest Data: {earliest}"),
             html.P(f"Latest Data: {latest}"),
             html.Hr(),
         ]
     )
 
-    # Determine which metadata files to load
+    # Load appropriate metadata JSON files
     metadata_map = {
-        "IoTBox":       ["iotbox_metadata.json"],
+        "IoTBox":         ["iotbox_metadata.json"],
         "Meteorological": ["meteostation_metadata.json"],
-        "Buoy":         ["buoy_metadata.json"],
-        "Fidas_Palas":  ["fidas_metadata.json"],
-        "SBNTransect":  ["exo_metadata.json", "idronaut_metadata.json"],
-        "JWCruise":     ["exo_metadata.json", "idronaut_metadata.json", "ead_ctd_metadata.json"],
+        "Buoy":           ["buoy_metadata.json"],
+        "Fidas_Palas":    ["fidas_metadata.json"],
+        "SBNTransect":    ["exo_metadata.json", "idronaut_metadata.json"],
+        "JWCruise":       ["exo_metadata.json", "idronaut_metadata.json", "ead_ctd_metadata.json"],
         "underwater_probe": ["exo_metadata.json"],
-        "coral_reef":   ["coral_reef_metadata.json"]
+        "coral_reef":     ["coral_reef_metadata.json"]
     }
-
     meta_dir = os.path.join(os.path.dirname(__file__), "..", "metadata")
 
-    # Build one tab per metadata file (instruments)
     tabs = []
     for fname in metadata_map.get(dev, []):
         path = os.path.join(meta_dir, fname)
         if not os.path.exists(path):
             continue
-        with open(path, 'r', encoding='utf-8') as f:
-            items = json.load(f)
 
-        # Build table for this instrument
+        # safely load JSON
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                raw = f.read().strip()
+                if not raw:
+                    continue
+                items = json.loads(raw)
+        except (json.JSONDecodeError, OSError):
+            continue
+
         table = html.Table(
             [
                 html.Thead(html.Tr([
@@ -297,31 +338,20 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
             style={"width": "100%", "marginBottom": "1rem"}
         )
 
-        # Determine human-readable label
         label = DISPLAY_NAMES.get(
             fname,
             fname.replace("_metadata.json", "").replace("_", " ").title()
         )
 
-        tabs.append(
-            dbc.Tab(
-                label=label,
-                tab_id=f"tab-{fname}",
-                children=[table]
-            )
-        )
+        tabs.append(dbc.Tab(label=label, tab_id=f"tab-{fname}", children=[table]))
 
-    # Heading above the tabs
     instruments_heading = html.H5("Instrument(s)", style={"marginTop": "1rem", "marginBottom": "0.5rem"})
-
-    # Combine into a Tabs component
     tabs_component = dbc.Tabs(
         tabs,
         id="metadata-tabs",
-        active_tab=tabs[0].tab_id if tabs else None
+        active_tab=(tabs[0].tab_id if tabs else None)
     )
 
-    # Assemble modal body: summary + instruments heading + tabs
     modal_children = [
         summary_section,
         instruments_heading,
