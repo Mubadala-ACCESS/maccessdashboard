@@ -8,10 +8,10 @@ from dash.dependencies import Input, Output, State, ALL
 import json
 import os
 import configparser
+import pandas as pd
 
 from pymongo import MongoClient
 from station_map import StationMap
-import pandas as pd
 
 # ------------------------------------------------------------------------------
 # Load configuration
@@ -24,6 +24,14 @@ MONGO_URI          = cfg.get('mongodb', 'uri')
 DB_NAME            = cfg.get('mongodb', 'database')
 BUOY_COLL          = cfg.get('mongodb', 'buoy_01_collection')
 METEO_COLL         = cfg.get('mongodb', 'f1_meteo_collection')
+
+# ------------------------------------------------------------------------------
+# Load special‐station available data
+# ------------------------------------------------------------------------------
+avail_path = os.path.join(os.path.dirname(__file__), '..', 'metadata', 'available_data.json')
+with open(avail_path, 'r', encoding='utf-8') as f:
+    _avail_list = json.load(f)
+SPECIAL_AVAIL = {d['station_type']: d for d in _avail_list}
 
 # ------------------------------------------------------------------------------
 # Human-readable display names for metadata files
@@ -237,7 +245,14 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
 
     # Determine earliest & latest timestamps
     special = {"SBNTransect", "JWCruise", "underwater_probe", "coral_reef"}
-    if dev not in special:
+    if dev in special:
+        avail = SPECIAL_AVAIL.get(dev)
+        if avail:
+            earliest = avail["earliest"]
+            latest   = avail["latest"]
+        else:
+            earliest = latest = "N/A"
+    else:
         client = MongoClient(MONGO_URI)
         db = client[DB_NAME]
 
@@ -258,7 +273,6 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
 
         if coll_name and coll_name in db.list_collection_names():
             coll = db[coll_name]
-            # only match docs that have the field
             first = coll.find_one({time_field: {"$exists": True}}, sort=[(time_field, 1)])
             last  = coll.find_one({time_field: {"$exists": True}}, sort=[(time_field, -1)])
 
@@ -272,14 +286,6 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
         else:
             earliest = latest = "N/A"
 
-    else:
-        df = station_map.get_station_time_series(sid, None, None)
-        if df.empty:
-            earliest = latest = "N/A"
-        else:
-            earliest = df["DateTime"].min().strftime("%Y-%m-%d %H:%M:%S")
-            latest   = df["DateTime"].max().strftime("%Y-%m-%d %H:%M:%S")
-
     # Build summary section
     summary_section = html.Div(
         [
@@ -287,6 +293,19 @@ def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
             html.P(f"Station Name: {station_name}"),
             html.P(f"Earliest Data: {earliest}"),
             html.P(f"Latest Data: {latest}"),
+            # Measurement frequency
+            html.P(
+                "Measurement Frequency: "
+                + (
+                    "Continuous real-time monitoring."
+                    if dev in {"IoTBox", "Fidas_Palas", "Buoy", "Meteorological"}
+                    else "Approximately three times per year (seasonal campaigns)."
+                    if dev == "JWCruise"
+                    else "Monthly transect sampling."
+                    if dev == "SBNTransect"
+                    else "Periodic interval sampling according to site-specific schedule."
+                )
+            ),
             html.Hr(),
         ]
     )
