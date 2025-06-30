@@ -93,6 +93,10 @@ class BuoyGraphs:
                           date_range: str,
                           selected_params: list[str],
                           agg=None) -> pd.DataFrame:
+        """
+        Fetch raw time-series data over the given date_range.
+        Does NOT drop zero-values here (zero-filtering happens per-parameter in plotting).
+        """
         now = self._utc_now()
         pipeline = []
         if date_range in self.deltas:
@@ -105,8 +109,6 @@ class BuoyGraphs:
 
         df = pd.DataFrame(docs)[["datetime"] + selected_params]
         df["datetime"] += GST_OFFSET
-        for p in selected_params:
-            df = df[df[p] != 0]
         return df
 
     def fetch_profiles(self,
@@ -224,10 +226,14 @@ class BuoyGraphs:
                                    df: pd.DataFrame,
                                    selected_params: list[str]
                                    ) -> list[go.Figure]:
+        """
+        Build one Scattergl figure per selected parameter,
+        dropping zeros per-parameter so other curves aren’t affected.
+        """
         figs = []
         for p in selected_params:
             if p in df.columns and not df[p].empty:
-                dfi = df[df[p] != 0]
+                dfi = df[df[p] != 0]  # zero-filter per curve
                 if len(dfi) > 50000:
                     step = math.ceil(len(dfi)/50000)
                     dfi = dfi.iloc[::step]
