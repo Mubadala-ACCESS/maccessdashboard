@@ -31,46 +31,50 @@ layout = dbc.Container([
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.Div(id="buoy-controls-timeseries", children=[
-                    html.Label("Display Period", style={"font-weight": "bold"}),
+                    html.Label("Display Period", className="maccess-panel-title mb-2"),
                     dcc.Dropdown(
                         id="buoy-date-range",
                         options=DATE_RANGE_OPTIONS,
-                        value="1D"
+                        value="1D",
+                        className="maccess-dropdown",
                     ),
-                    html.Hr(style={"border-top": "2px solid purple"}),
-                    html.Label("Select Parameters", style={"font-weight": "bold"}),
+                    html.Hr(className="maccess-divider"),
+                    html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small mb-2"),
                     dcc.Checklist(
                         id="buoy-param-checklist",
-                        style={"height": "20vh", "overflow-y": "auto"},
+                        className="maccess-scrollable list-unstyled",
                         options=[{"label": buoy.param_labels[p], "value": p} for p in buoy.scalar_params],
-                        value=buoy.scalar_params
+                        value=buoy.scalar_params,
                     ),
                 ]),
                 html.Div(id="buoy-controls-profile", style={"display": "none"}, children=[
-                    html.Label("Display Period", style={"font-weight": "bold"}),
+                    html.Label("Display Period", className="maccess-panel-title mb-2"),
                     dcc.Dropdown(
                         id="buoy-profile-date-range",
                         options=DATE_RANGE_OPTIONS,
-                        value="1D"
+                        value="1D",
+                        className="maccess-dropdown",
                     ),
-                    html.Hr(style={"border-top": "2px solid purple"}),
-                    html.Label("Select Parameters", style={"font-weight": "bold"}),
+                    html.Hr(className="maccess-divider"),
+                    html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small mb-2"),
                     dcc.Checklist(
                         id="buoy-profile-param-checklist",
-                        style={"height": "20vh", "overflow-y": "auto"},
+                        className="maccess-scrollable list-unstyled",
                         options=[{"label": buoy.param_labels[p], "value": p} for p in buoy.profile_params],
-                        value=buoy.profile_params
+                        value=buoy.profile_params,
                     ),
                 ]),
-                html.Hr(style={"border-top": "2px solid purple"}),
-                dbc.Button("Download Data", id="buoy-download-open", color="primary", className="w-100"),
+                html.Hr(className="maccess-divider"),
+                dbc.Button(
+                    "Download Data",
+                    id="buoy-download-open",
+                    color="primary",
+                    className="w-100 rounded-md",
+                ),
             ])
-        ], className="mb-2",
+        ], className="mb-2 maccess-card maccess-scrollable",
             style={
-                "border": "3px solid purple",
-                "box-shadow": "2px 2px 5px lightgrey",
                 "height": "85vh",
-                "overflow-y": "auto"
             }), width=3, style={"padding": "10px"}),
 
         # Graphs Column
@@ -80,14 +84,12 @@ layout = dbc.Container([
                     dcc.Tab(label="Atmospheric Parameters", value="tab-timeseries"),
                     dcc.Tab(label="Vertical Profiles",       value="tab-profile"),
                 ]),
-                html.Div(id="buoy-tab-content", style={
-                    "height": "75vh", "overflow-y": "auto", "padding": "10px"
+                html.Div(id="buoy-tab-content", className="maccess-scrollable", style={
+                    "height": "75vh", "padding": "10px"
                 })
             ])
-        ], className="mb-2",
+        ], className="mb-2 maccess-card",
             style={
-                "border": "3px solid purple",
-                "box-shadow": "2px 2px 5px lightgrey",
                 "height": "85vh",
                 "overflow": "hidden"
             }), width=9, style={"padding": "10px"}),
@@ -95,7 +97,7 @@ layout = dbc.Container([
 
     # Download Modal
     dbc.Modal([
-        dbc.ModalHeader("Download Buoy Data"),
+        dbc.ModalHeader(dbc.ModalTitle("Download Buoy Data")),
         dbc.ModalBody([
             html.Label("Select Date Range:", style={"font-weight": "bold"}),
             dcc.Dropdown(

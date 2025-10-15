@@ -67,7 +67,7 @@ layout = dbc.Container(
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                html.Label("Search", style={"fontWeight": "bold"}),
+                                html.H6("Refine Map", className="maccess-panel-title"),
                                 dbc.InputGroup(
                                     [
                                         dcc.Input(
@@ -75,19 +75,14 @@ layout = dbc.Container(
                                             type="text",
                                             placeholder="Search by station name or number",
                                             debounce=True,
-                                            style={"flex": "1", "minWidth": 0}
+                                            className="form-control",
                                         ),
-                                        dbc.Button(
-                                            "Search",
-                                            id="search-button",
-                                            n_clicks=0,
-                                            style={"backgroundColor": "purple", "color": "white"}
-                                        ),
+                                        dbc.Button("Search", id="search-button", n_clicks=0),
                                     ],
-                                    style={"display": "flex", "width": "100%"},
+                                    className="maccess-input-group",
                                 ),
-                                html.Br(),
-                                html.Label("Privacy", style={"fontWeight": "bold"}),
+                                html.Hr(className="maccess-divider"),
+                                html.Label("Privacy", className="fw-semibold text-uppercase text-muted small"),
                                 dcc.Dropdown(
                                     id="privacy-dropdown",
                                     options=[
@@ -96,9 +91,10 @@ layout = dbc.Container(
                                         {"label": "Private", "value": False},
                                     ],
                                     value="all",
+                                    className="maccess-dropdown",
                                 ),
-                                html.Br(),
-                                html.Label("Station Type", style={"fontWeight": "bold"}),
+                                html.Hr(className="maccess-divider"),
+                                html.Label("Station Type", className="fw-semibold text-uppercase text-muted small"),
                                 dcc.Dropdown(
                                     id="type-dropdown",
                                     options=[
@@ -113,9 +109,10 @@ layout = dbc.Container(
                                         {"label": "Coral Reef Monitoring", "value": "coral_reef"},
                                     ],
                                     value="all",
+                                    className="maccess-dropdown",
                                 ),
-                                html.Br(),
-                                html.Label("Status", style={"fontWeight": "bold"}),
+                                html.Hr(className="maccess-divider"),
+                                html.Label("Status", className="fw-semibold text-uppercase text-muted small"),
                                 dcc.Dropdown(
                                     id="status-dropdown",
                                     options=[
@@ -127,10 +124,11 @@ layout = dbc.Container(
                                         {"label": "Decommissioned", "value": "Decommissioned"},
                                     ],
                                     value="all",
+                                    className="maccess-dropdown",
                                 ),
                             ]
                         ),
-                        style={"height": "100%", "border": "2px solid purple", "boxShadow": "2px 2px 5px lightgrey"},
+                        className="maccess-card h-100",
                     ),
                     width=3,
                 ),
@@ -139,22 +137,22 @@ layout = dbc.Container(
                 dbc.Col(
                     dbc.Card(
                         dbc.CardBody(
-                            html.Div(id="map-output", style={"height": "100%"})
+                            html.Div(id="map-output", className="h-100")
                         ),
-                        style={"height": "100%", "border": "2px solid purple", "boxShadow": "2px 2px 5px lightgrey"},
+                        className="maccess-card h-100",
                     ),
                     width=9,
                 ),
             ],
-            style={"height": "calc(100vh - 100px)", "alignItems": "stretch"},
-            className="gy-3",
+            style={"minHeight": "70vh", "alignItems": "stretch"},
+            className="gy-4",
         ),
 
         # Metadata modal (wider, scrollable, tabbed)
         dbc.Modal(
             [
                 dbc.ModalHeader(dbc.ModalTitle("Station Metadata")),
-                dbc.ModalBody(id="modal-body", style={"maxHeight": "60vh", "overflowY": "auto"}),
+                dbc.ModalBody(id="modal-body", className="maccess-scrollable"),
                 dbc.ModalFooter(
                     dbc.Button("Close", id="close-modal", n_clicks=0, className="ms-auto")
                 ),

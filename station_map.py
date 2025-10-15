@@ -126,36 +126,41 @@ class StationMap:
             label = self.device_type_labels.get(dt, dt)
             icon = dict(
                 iconUrl=f"/assets/{icon_map.get(dt, 'buoy.png')}",
-                iconSize=[60, 60],
-                iconAnchor=[30, 30],
-                popupAnchor=[0, -30]
+                iconSize=[56, 56],
+                iconAnchor=[28, 28],
+                popupAnchor=[0, -28],
+                className="maccess-map-icon"
             )
 
-            # both links now use btn-link styling
+            station_num = s.get("Station Num")
+
             if dt in ["SBNTransect", "JWCruise", "underwater_probe", "coral_reef"]:
-                base = html.A(
-                    "Station Data",
-                    href=f"https://nyuadmaccess.org/login?next=/dashboard?open_station={s['Station ID']}",
-                    target="_self",
-                    className="btn btn-link",
-                    style={"padding": 0, "color": "blue"}
-                )
+                data_href = f"https://nyuadmaccess.org/login?next=/dashboard?open_station={s['Station ID']}"
+                data_label = "Station Data"
+                data_target = "_self"
             elif dt == "Fidas_Palas":
-                base = html.A(
-                    "Station Data",
-                    href="http://10.224.41.15",
-                    target="_blank",
-                    className="btn btn-link",
-                    style={"padding": 0, "color": "blue"}
+                data_href = "http://10.224.41.15"
+                data_label = "Fidas Dashboard"
+                data_target = "_blank"
+            else:
+                data_label = "View All Station Data"
+                if station_num is not None:
+                    data_href = f"/stationdata/{dt}/{station_num}"
+                    data_target = "_self"
+                else:
+                    data_href = None
+                    data_target = "_self"
+
+            if data_href:
+                data_btn = html.A(
+                    data_label,
+                    href=data_href,
+                    target=data_target,
+                    rel="noopener noreferrer" if data_target == "_blank" else None,
+                    className="maccess-link",
                 )
             else:
-                base = html.A(
-                    "View All Station Data",
-                    href=f"/stationdata/{dt}/{s['Station Num']}",
-                    target="_self",
-                    className="btn btn-link",
-                    style={"padding": 0, "color": "blue"}
-                )
+                data_btn = html.Span(data_label, className="maccess-link disabled")
 
             meta_btn = html.Button(
                 "Station Metadata",
@@ -165,16 +170,39 @@ class StationMap:
                     "device": dt
                 },
                 n_clicks=0,
-                className="btn btn-link",
-                style={"marginLeft": "10px", "padding": 0,"color": "blue" }
+                className="maccess-link-button",
             )
 
-            popup = html.Div([
-                html.P(f"Name: {s['Station Name']}"),
-                html.P(f"Type: {label}"),
-                html.P(f"Location: ({lat0:.3f}, {lon0:.3f})"),
-                html.Div([base, meta_btn], style={"display": "flex", "alignItems": "center"})
-            ])
+            popup = html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div(label, className="maccess-popup-badge"),
+                            html.H5(s["Station Name"], className="maccess-popup-title"),
+                        ],
+                        className="maccess-popup-header",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.Span("Latitude", className="maccess-popup-label"),
+                                    html.Span(f"{lat0:.3f}", className="maccess-popup-value"),
+                                ]
+                            ),
+                            html.Div(
+                                [
+                                    html.Span("Longitude", className="maccess-popup-label"),
+                                    html.Span(f"{lon0:.3f}", className="maccess-popup-value"),
+                                ]
+                            ),
+                        ],
+                        className="maccess-popup-coords",
+                    ),
+                    html.Div([data_btn, meta_btn], className="maccess-popup-actions"),
+                ],
+                className="maccess-popup",
+            )
 
             markers.append(dl.Marker(
                 position=(dlat, dlon),

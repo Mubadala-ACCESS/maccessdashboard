@@ -1,0 +1,404 @@
+@import url("https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;600;700&family=Playfair+Display:wght@400;600&display=swap");
+
+:root {
+  /* NYU guidelines */
+  --color-nyu-violet: #57068c;
+  --color-nyu-violet-dark: #3a0461;
+  --color-nyu-violet-light: #b799d9;
+  --color-nyu-black: #181818;
+  --color-nyu-charcoal: #2f2f38;
+  --color-nyu-gray: #8f90a0;
+  --color-nyu-cloud: #f4f4f7;
+  --color-nyu-white: #ffffff;
+  --color-success: #4bbf73;
+  --color-warning: #f7a046;
+  --color-danger: #e65252;
+
+  /* Typography */
+  --font-sans: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Playfair Display", "Times New Roman", serif;
+
+  /* Layout tokens */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --shadow-soft: 0 8px 24px rgba(24, 24, 24, 0.08);
+  --shadow-subtle: 0 4px 12px rgba(55, 6, 104, 0.1);
+  --transition-fast: 120ms ease-in-out;
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  background: linear-gradient(180deg, rgba(247, 247, 250, 0.95) 0%, var(--color-nyu-cloud) 100%);
+  color: var(--color-nyu-charcoal);
+  min-height: 100%;
+}
+
+a,
+a:visited,
+a:active {
+  color: var(--color-nyu-violet);
+}
+
+a.btn,
+a.btn:visited,
+a.btn:active {
+  color: inherit;
+}
+
+a:hover {
+  color: var(--color-nyu-violet-dark);
+  text-decoration: none;
+}
+
+/* Navbar ----------------------------------------------------------- */
+.maccess-navbar {
+  background: linear-gradient(90deg, var(--color-nyu-violet-dark), var(--color-nyu-violet));
+  box-shadow: var(--shadow-soft);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.12);
+}
+
+.maccess-navbar .navbar-brand {
+  display: flex;
+  align-items: center;
+}
+
+.maccess-navbar .navbar-brand img {
+  height: 56px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  transition: transform var(--transition-fast);
+}
+
+.maccess-navbar .navbar-brand img:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.maccess-navbar .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Card + panel styling -------------------------------------------- */
+.maccess-card {
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  background-color: var(--color-nyu-white);
+  overflow: hidden;
+}
+
+.maccess-card .card-body {
+  padding: 1.5rem;
+}
+
+.maccess-panel-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-nyu-violet-dark);
+  margin-bottom: 0.75rem;
+}
+
+.maccess-divider {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(87, 6, 140, 0.45), rgba(87, 6, 140, 0));
+  margin: 1.25rem 0;
+}
+
+/* Forms & filters -------------------------------------------------- */
+.maccess-input-group > .form-control,
+.maccess-input-group > .btn {
+  border-radius: var(--radius-sm);
+}
+
+.maccess-input-group > .btn {
+  background-color: var(--color-nyu-violet);
+  border: none;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.maccess-input-group > .btn:hover {
+  background-color: var(--color-nyu-violet-dark);
+  transform: translateY(-1px);
+}
+
+.maccess-dropdown .Select-control,
+.maccess-dropdown .Select-menu-outer {
+  border-radius: var(--radius-sm) !important;
+  border-color: rgba(87, 6, 140, 0.2) !important;
+  box-shadow: none !important;
+}
+
+.maccess-dropdown .Select-placeholder,
+.maccess-dropdown .Select-value-label {
+  color: var(--color-nyu-charcoal) !important;
+}
+
+/* Buttons ---------------------------------------------------------- */
+.btn-primary,
+.btn-primary:focus {
+  background-color: var(--color-nyu-violet);
+  border-color: var(--color-nyu-violet);
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-nyu-violet-dark);
+  border-color: var(--color-nyu-violet-dark);
+}
+
+.btn-outline-light,
+.btn-outline-light:visited,
+.btn-outline-light:active {
+  color: var(--color-nyu-white) !important;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-outline-light:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--color-nyu-white);
+}
+
+/* Tabs ------------------------------------------------------------- */
+.tab-content {
+  padding-top: 1rem;
+}
+
+.nav-tabs .nav-link,
+.nav-tabs .nav-link:focus {
+  border: none;
+  color: var(--color-nyu-gray);
+  font-weight: 600;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--color-nyu-violet);
+  border-bottom: 3px solid var(--color-nyu-violet);
+  background-color: transparent;
+}
+
+/* Modals ----------------------------------------------------------- */
+.modal-content {
+  border-radius: var(--radius-md);
+  border: none;
+  box-shadow: var(--shadow-soft);
+}
+
+.modal-header,
+.modal-footer {
+  border: none;
+}
+
+.modal-title {
+  font-weight: 700;
+  color: var(--color-nyu-violet-dark);
+}
+
+/* Tables ----------------------------------------------------------- */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th {
+  background-color: rgba(87, 6, 140, 0.08);
+  color: var(--color-nyu-violet-dark);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+th,
+td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(87, 6, 140, 0.08);
+  font-size: 0.95rem;
+}
+
+tbody tr:hover {
+  background-color: rgba(87, 6, 140, 0.04);
+}
+
+/* Utility helpers -------------------------------------------------- */
+.bg-nyu-violet {
+  background-color: var(--color-nyu-violet) !important;
+}
+
+.text-nyu-violet {
+  color: var(--color-nyu-violet) !important;
+}
+
+.text-nyu-light {
+  color: var(--color-nyu-violet-light) !important;
+}
+
+.shadow-nyu {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.rounded-md {
+  border-radius: var(--radius-md) !important;
+}
+
+/* Scrollbar styling for data-heavy panels */
+.maccess-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.maccess-scrollable::-webkit-scrollbar-track {
+  background: rgba(87, 6, 140, 0.08);
+  border-radius: 999px;
+}
+
+.maccess-scrollable::-webkit-scrollbar-thumb {
+  background: var(--color-nyu-violet-light);
+  border-radius: 999px;
+}
+
+/* Map container adjustments --------------------------------------- */
+#map-output {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  border: 2px solid rgba(87, 6, 140, 0.12);
+}
+
+.leaflet-control {
+  border-radius: var(--radius-sm) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-subtle);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 1rem 1.1rem;
+}
+
+.leaflet-popup-tip {
+  background: var(--color-nyu-white);
+}
+
+.maccess-popup {
+  min-width: 240px;
+  color: var(--color-nyu-charcoal);
+}
+
+.maccess-popup-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.maccess-popup-title {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  margin: 0;
+  color: var(--color-nyu-violet-dark);
+}
+
+.maccess-popup-badge {
+  align-self: flex-start;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(87, 6, 140, 0.14);
+  color: var(--color-nyu-violet);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.maccess-popup-coords {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(87, 6, 140, 0.12);
+  border-bottom: 1px solid rgba(87, 6, 140, 0.12);
+}
+
+.maccess-popup-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-nyu-gray);
+}
+
+.maccess-popup-value {
+  display: block;
+  font-weight: 600;
+}
+
+.maccess-popup-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding-top: 0.85rem;
+}
+
+.maccess-link,
+.maccess-link:visited {
+  color: var(--color-nyu-violet);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.maccess-link:hover {
+  color: var(--color-nyu-violet-dark);
+  text-decoration: underline;
+}
+
+.maccess-link.disabled {
+  color: var(--color-nyu-gray);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.maccess-link-button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-nyu-violet);
+  font-weight: 600;
+}
+
+.maccess-link-button:hover {
+  color: var(--color-nyu-violet-dark);
+  text-decoration: underline;
+}
+
+.maccess-map-icon {
+  filter: drop-shadow(0 8px 12px rgba(18, 18, 18, 0.18));
+  transition: transform var(--transition-fast);
+}
+
+.leaflet-marker-icon.maccess-map-icon:hover {
+  transform: translateY(-2px);
+}
+
+/* Responsive tweaks ------------------------------------------------ */
+@media (max-width: 992px) {
+  .maccess-navbar .navbar-brand img {
+    height: 48px;
+  }
+
+  .maccess-card .card-body {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .maccess-card {
+    border-radius: var(--radius-sm);
+  }
+
+  .maccess-card .card-body {
+    padding: 1rem;
+  }
+}
+

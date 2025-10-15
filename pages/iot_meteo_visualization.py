@@ -52,7 +52,7 @@ layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.Label("Display Period", style={"font-weight": "bold"}),
+                    html.Label("Display Period", className="maccess-panel-title mb-2"),
                     dcc.Dropdown(
                         id="date-range-dropdown",
                         options=[
@@ -65,10 +65,11 @@ layout = dbc.Container([
                             {"label": "Past 1 Year", "value": "1Y"},
                             {"label": "All Data", "value": "All"}
                         ],
-                        value="1W"
+                        value="1W",
+                        className="maccess-dropdown",
                     ),
-                    html.Hr(style={"border-top": "2px solid purple"}),
-                    html.Label("Aggregation", style={"font-weight": "bold"}),
+                    html.Hr(className="maccess-divider"),
+                    html.Label("Aggregation", className="fw-semibold text-uppercase text-muted small"),
                     dcc.Dropdown(
                         id="aggregation-dropdown",
                         options=[
@@ -78,49 +79,54 @@ layout = dbc.Container([
                             {"label": "Weekly", "value": "W"},
                             {"label": "Monthly", "value": "M"}
                         ],
-                        value="None"
+                        value="None",
+                        className="maccess-dropdown",
                     ),
-                    html.Hr(style={"border-top": "2px solid purple"}),
-                    html.Label("Select Parameters", style={"font-weight": "bold"}),
+                    html.Hr(className="maccess-divider"),
+                    html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small"),
                     dcc.Checklist(
                         id="parameter-checklist",
                         inline=False,
-                        style={"height": "24vh", "overflow-y": "auto"}
+                        className="maccess-scrollable list-unstyled",
+                        style={"maxHeight": "24vh"}
                     ),
-                    html.Hr(style={"border-top": "2px solid purple"}),
-                    dbc.Button("Download Data", id="open-download-modal", color="primary", className="mt-2 d-block w-100"),
-                    html.Hr(style={"border-top": "2px solid purple"}),
+                    html.Hr(className="maccess-divider"),
+                    dbc.Button(
+                        "Download Data",
+                        id="open-download-modal",
+                        color="primary",
+                        className="mt-2 d-block w-100 rounded-md",
+                    ),
+                    html.Hr(className="maccess-divider"),
                     html.Div([
-                        html.Label("Individual Sensor Readings", style={"font-weight": "bold"}),
-                        daq.BooleanSwitch(id="split-toggle", on=False, label="OFF/ON", labelPosition="top"),
+                        html.Label("Individual Sensor Readings", className="fw-semibold text-uppercase text-muted small"),
+                        daq.BooleanSwitch(id="split-toggle", on=False, label="OFF", labelPosition="top"),
                     ], id="sensor-readings-container"),
                 ])
-            ], className="mb-2", style={
-                "border": "3px solid purple",
-                "box-shadow": "2px 2px 5px lightgrey",
+            ], className="mb-2 maccess-card maccess-scrollable", style={
                 "height": "85vh",
-                "overflow-y": "auto"
             })
-        ], width=3, style={"padding": "10px"}),
+        ], width=3, className="pt-3 pb-4"),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.Div(id="graph-output", style={
-                        "height": "80vh",
-                        "overflow-y": "auto",
-                        "border": "3px solid purple",
-                        "padding": "10px",
-                        "background-color": "white"
-                    })
+                    html.Div(
+                        id="graph-output",
+                        className="maccess-scrollable",
+                        style={
+                            "height": "80vh",
+                            "padding": "1rem",
+                            "backgroundColor": "rgba(255, 255, 255, 0.92)",
+                            "overflowY": "auto",
+                        },
+                    )
                 ])
-            ], style={
-                "border": "3px solid purple",
-                "box-shadow": "2px 2px 5px lightgrey",
+            ], className="maccess-card", style={
                 "height": "85vh",
-                "overflow": "hidden"
+                "overflow": "hidden",
             })
-        ], width=9, style={"padding": "10px"})
-    ], class_name="mb-3", align="center"),
+        ], width=9, className="pt-3 pb-4")
+    ], class_name="mb-3", align="center", justify="center"),
     dbc.Modal([
         dbc.ModalHeader("Download Data"),
         dbc.ModalBody([
@@ -237,8 +243,21 @@ def update_visualization(pathname, date_range, aggregation, selected_parameters,
             split_view
         )
     return html.Div(
-        [dcc.Graph(figure=fig, style={"border": "2px solid lightgray", "padding": "5px"}) for fig in figures],
-        style={"display": "flex", "flex-direction": "column", "gap": "10px"}
+        [
+            dbc.Card(
+                dbc.CardBody(
+                    dcc.Graph(figure=fig, config={"displaylogo": False})
+                ),
+                className="maccess-card chart-card",
+            )
+            for fig in figures
+        ],
+        style={
+            "display": "flex",
+            "flexDirection": "column",
+            "gap": "1rem",
+            "overflow": "visible",
+        },
     )
 
 @callback(
@@ -351,6 +370,10 @@ def toggle_sensor_readings_container(pathname):
         return {"display": "none"}
     return {}
 
+
+@callback(Output("split-toggle", "label"), Input("split-toggle", "on"))
+def _update_split_label(is_on):
+    return "ON" if is_on else "OFF"
 def add_location_info(df, station_num):
     """
     Given a DataFrame and a station number, query the stations_info collection to
@@ -368,3 +391,4 @@ def add_location_info(df, station_num):
     except Exception as e:
         print(f"Error retrieving location info: {e}")
     return df
+
