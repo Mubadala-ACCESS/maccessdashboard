@@ -1,6 +1,6 @@
 import dash
 import dash_bootstrap_components as dbc
-from dash import html, dcc
+from dash import html, dcc, clientside_callback, Input, Output
 
 # Initialize Dash app
 app = dash.Dash(
@@ -15,6 +15,7 @@ app._favicon = "favicon.png"
 # Define main layout with navigation and page container
 app.layout = dbc.Container(
     [
+        dcc.Store(id="scroll-position", data=0),
         dbc.Navbar(
             dbc.Container(
                 [
@@ -31,13 +32,70 @@ app.layout = dbc.Container(
                 fluid=True,
             ),
             dark=True,
-            sticky="top",
-            className="maccess-navbar",
+            id="main-navbar",
+            className="maccess-navbar navbar-visible",
         ),
         dcc.Location(id="url", refresh=False),
-        dbc.Container(dash.page_container, className="py-4", fluid=True),
+        dbc.Container(dash.page_container, className="py-2", fluid=True),
     ],
     fluid=True,
+)
+
+# Clientside callback for navbar hide/show on scroll
+clientside_callback(
+    """
+    function(pathname) {
+        if (typeof window === 'undefined') return window.dash_clientside.no_update;
+        
+        // Remove any existing scroll listener
+        if (window.navbarScrollHandler) {
+            window.removeEventListener('scroll', window.navbarScrollHandler);
+        }
+        
+        let lastScroll = 0;
+        let ticking = false;
+        const navbar = document.getElementById('main-navbar');
+        const scrollThreshold = 5;
+        
+        if (!navbar) return window.dash_clientside.no_update;
+        
+        // Optimized scroll handler using requestAnimationFrame
+        window.navbarScrollHandler = function() {
+            if (!ticking) {
+                window.requestAnimationFrame(function() {
+                    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    // Don't hide navbar if at the very top
+                    if (currentScroll < 80) {
+                        navbar.classList.remove('navbar-hidden');
+                        navbar.classList.add('navbar-visible');
+                    } 
+                    // Scrolling down - hide navbar
+                    else if (currentScroll > lastScroll + scrollThreshold) {
+                        navbar.classList.remove('navbar-visible');
+                        navbar.classList.add('navbar-hidden');
+                    } 
+                    // Scrolling up - show navbar
+                    else if (currentScroll < lastScroll - scrollThreshold) {
+                        navbar.classList.remove('navbar-hidden');
+                        navbar.classList.add('navbar-visible');
+                    }
+                    
+                    lastScroll = currentScroll;
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+        
+        // Add the event listener
+        window.addEventListener('scroll', window.navbarScrollHandler, { passive: true });
+        
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("scroll-position", "data"),
+    Input("url", "pathname"),
 )
 
 

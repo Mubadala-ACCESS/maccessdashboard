@@ -25,7 +25,7 @@ layout = dbc.Container([
       # Controls
       dbc.Col(dbc.Card([
         dbc.CardBody([
-          html.Label("Display Period", style={"font-weight":"bold"}),
+          html.Label("Display Period", className="maccess-panel-title mb-2"),
           dcc.Dropdown(id="fidas-date-range", options=[
             {"label":"Past 6 Hours","value":"6H"},
             {"label":"Past 12 Hours","value":"12H"},
@@ -36,56 +36,85 @@ layout = dbc.Container([
             {"label":"Past 6 Months","value":"6M"},
             {"label":"Past 1 Year","value":"1Y"},
             {"label":"All Data","value":"All"},
-          ], value="1D"),
+          ], value="1D", className="maccess-dropdown"),
 
-          html.Hr(style={"border-top":"2px solid purple"}),
-          html.Label("Aggregation", style={"font-weight":"bold"}),
+          html.Hr(className="maccess-divider"),
+          html.Label("Aggregation", className="fw-semibold text-uppercase text-muted small"),
           dcc.Dropdown(id="fidas-aggregation", options=[
             {"label":"None","value":"None"},
             {"label":"Hourly","value":"H"},
             {"label":"Daily","value":"D"},
             {"label":"Weekly","value":"W"},
             {"label":"Monthly","value":"M"},
-          ], value="None"),
+          ], value="None", className="maccess-dropdown"),
 
-          html.Hr(style={"border-top":"2px solid purple"}),
-          html.Label("Select Parameters", style={"font-weight":"bold"}),
+          html.Hr(className="maccess-divider"),
+          html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small"),
           dcc.Checklist(id="fidas-param-checklist",
-            style={"height":"24vh","overflow-y":"auto"},
+            className="fidas-param-checklist list-unstyled",
             options=[{"label":fidas.param_labels[p],"value":p}
                      for p in fidas.scalar_params],
             value=["PM2.5","PMtot"]
           ),
 
-          html.Hr(style={"border-top":"2px solid purple"}),
-          html.Div(dbc.Row([
-            dbc.Col(dbc.Button("« Yr",  id="step-prev-year",  size="sm"), width="auto"),
-            dbc.Col(dbc.Button("‹ Mo",  id="step-prev-month", size="sm"), width="auto"),
-            dbc.Col(dbc.Button("– Dy",  id="step-prev-day",   size="sm"), width="auto"),
-            dbc.Col(dbc.Button("— Hr",  id="step-prev-hour",  size="sm"), width="auto"),
-            dbc.Col(dbc.Button("· Min", id="step-prev-min",   size="sm"), width="auto"),
-            dbc.Col(dcc.DatePickerSingle(
-              id="fidas-date-picker",
-              date=datetime.now().date(),
-              display_format="YYYY-MM-DD"
-            ), width="auto", style={"padding-left":"8px"}),
-            dbc.Col(dbc.Button("Min ·", id="step-next-min",   size="sm"), width="auto"),
-            dbc.Col(dbc.Button("Hr —", id="step-next-hour",  size="sm"), width="auto"),
-            dbc.Col(dbc.Button("Dy –", id="step-next-day",   size="sm"), width="auto"),
-            dbc.Col(dbc.Button("Mo ›", id="step-next-month", size="sm"), width="auto"),
-            dbc.Col(dbc.Button("Yr »", id="step-next-year",  size="sm"), width="auto"),
-          ]), id="step-controls",
-             style={"display":"none","margin":"10px 0"}),
+          html.Hr(className="maccess-divider"),
+          html.Div([
+            # Date Input
+            html.Div([
+              dbc.Input(
+                id="fidas-date-picker",
+                type="date",
+                value=datetime.now().strftime("%Y-%m-%d"),
+                className="fidas-date-input",
+                size="sm"
+              ),
+            ], style={"display":"flex", "justifyContent":"center", "marginBottom":"8px"}),
+            
+            # Week/Day Navigation
+            html.Div([
+              dbc.Button("+1w", id="fidas-next-week", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("+1d", id="fidas-next-day", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("-1d", id="fidas-prev-day", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("-1w", id="fidas-prev-week", size="sm", color="light", className="fidas-nav-button"),
+            ], style={"display":"flex", "gap":"6px", "justifyContent":"center", "marginBottom":"8px"}),
+            
+            # Year/Month Navigation
+            html.Div([
+              dbc.Button("+1yr", id="fidas-next-year", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("+6mo", id="fidas-next-6month", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("-6mo", id="fidas-prev-6month", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("-1yr", id="fidas-prev-year", size="sm", color="light", className="fidas-nav-button"),
+            ], style={"display":"flex", "gap":"6px", "justifyContent":"center", "marginBottom":"8px"}),
+            
+            # Time Input
+            html.Div([
+              dbc.Input(
+                id="fidas-time-input",
+                type="time",
+                value=datetime.now().strftime("%H:%M"),
+                className="fidas-time-input",
+                size="sm"
+              ),
+            ], style={"display":"flex", "justifyContent":"center", "marginBottom":"8px"}),
+            
+            # Hour Navigation
+            html.Div([
+              dbc.Button("+12hr", id="fidas-next-12hour", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("+1hr", id="fidas-next-hour", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("-1hr", id="fidas-prev-hour", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("-12hr", id="fidas-prev-12hour", size="sm", color="light", className="fidas-nav-button"),
+            ], style={"display":"flex", "gap":"6px", "justifyContent":"center"}),
+          ], id="step-controls",
+             style={"display":"block"}),
 
-          html.Hr(style={"border-top":"2px solid purple"}),
-          dbc.Button("Download Data", id="fidas-download-open", color="primary", className="w-100")
-        ])
+          html.Hr(className="maccess-divider"),
+          dbc.Button("Download Data", id="fidas-download-open", color="primary", className="w-100 rounded-md")
+        ], style={"overflowY": "auto", "height": "100%", "position": "relative"})
       ],
-      className="mb-2",
+      className="mb-2 maccess-card",
       style={
-        "border":"3px solid purple","box-shadow":"2px 2px 5px lightgrey",
-        "height":"85vh","overflow-y":"auto"
-      }), width=3, style={"padding":"10px"}),
+        "height":"85vh", "overflowX": "visible", "overflowY": "hidden"
+      }), width=4, className="p-1"),
 
       # Graphs
       dbc.Col(dbc.Card([
@@ -95,22 +124,21 @@ layout = dbc.Container([
             dcc.Tab(label="Spectra",     value="tab-spectra"),
           ]),
           html.Div(id="fidas-tab-content", style={
-            "height":"80vh","overflow-y":"auto","padding":"10px"
+            "height":"92vh","overflow-y":"auto","padding":"0","scrollSnapType":"y mandatory"
           })
-        ])
+        ], style={"padding":"0"})
       ],
-      className="mb-2",
+      className="mb-2 maccess-card",
       style={
-        "border":"3px solid purple","box-shadow":"2px 2px 5px lightgrey",
-        "height":"85vh","overflow":"hidden"
-      }), width=9, style={"padding":"10px"})
-    ], class_name="mb-3", align="center"),
+        "height":"92vh","overflow":"hidden"
+      }), width=8, className="p-1")
+    ], class_name="mb-3", align="center", justify="center"),
 
     # Download Modal
     dbc.Modal([
-      dbc.ModalHeader("Download Fidas Data"),
+      dbc.ModalHeader(dbc.ModalTitle("Download Fidas Data")),
       dbc.ModalBody([
-        html.Label("Select Date Range:", style={"font-weight":"bold"}),
+        html.Label("Select Date Range:", style={"fontWeight":"bold"}),
         dcc.Dropdown(id="fidas-download-range", options=[
           {"label":"Past 6 Hours","value":"6H"},
           {"label":"Past 12 Hours","value":"12H"},
@@ -123,9 +151,9 @@ layout = dbc.Container([
           {"label":"All Data","value":"All"},
         ], value="1D"),
         html.Br(),
-        html.Label("Select Parameters:", style={"font-weight":"bold"}),
+        html.Label("Select Parameters:", style={"fontWeight":"bold"}),
         dcc.Checklist(id="fidas-download-params",
-          style={"height":"20vh","overflow-y":"auto"},
+          style={"height":"20vh","overflowY":"auto"},
           options=[{"label":fidas.param_labels[p],"value":p}
                    for p in fidas.scalar_params],
           value=["PM2.5","PMtot"]
@@ -150,33 +178,130 @@ layout = dbc.Container([
     Input("fidas-tabs","value")
 )
 def _show_steps(tab):
-    return {"display":"block","margin":"10px 0"} if tab=="tab-spectra" else {"display":"none"}
+    return {"display":"block"} if tab=="tab-spectra" else {"display":"none"}
 
 
-# single callback for both init & stepping of fidas-current-dt
+# Callback to update date picker value when navigation buttons are clicked
+@dash.callback(
+    Output("fidas-date-picker", "value"),
+    [Input("fidas-prev-day", "n_clicks"),
+     Input("fidas-next-day", "n_clicks"),
+     Input("fidas-prev-week", "n_clicks"),
+     Input("fidas-next-week", "n_clicks"),
+     Input("fidas-prev-6month", "n_clicks"),
+     Input("fidas-next-6month", "n_clicks"),
+     Input("fidas-prev-year", "n_clicks"),
+     Input("fidas-next-year", "n_clicks")],
+    State("fidas-date-picker", "value"),
+    prevent_initial_call=True,
+    suppress_callback_exceptions=True
+)
+def _update_date_picker(prev_day, next_day, prev_week, next_week, 
+                        prev_6mo, next_6mo, prev_year, next_year, current_date):
+    from datetime import datetime as dt, timedelta
+    from dateutil.relativedelta import relativedelta
+    
+    trig = callback_context.triggered_id
+    if not trig or not current_date:
+        return no_update
+    
+    try:
+        current = dt.strptime(current_date, "%Y-%m-%d")
+        
+        # Map button IDs to time deltas
+        delta_map = {
+            "fidas-prev-day": timedelta(days=-1),
+            "fidas-next-day": timedelta(days=1),
+            "fidas-prev-week": timedelta(weeks=-1),
+            "fidas-next-week": timedelta(weeks=1),
+            "fidas-prev-6month": relativedelta(months=-6),
+            "fidas-next-6month": relativedelta(months=6),
+            "fidas-prev-year": relativedelta(years=-1),
+            "fidas-next-year": relativedelta(years=1),
+        }
+        
+        if trig in delta_map:
+            new_date = current + delta_map[trig]
+            return new_date.strftime("%Y-%m-%d")
+        
+        return no_update
+    except:
+        return no_update
+
+
+# Callback to update time input value when hour navigation buttons are clicked
+@dash.callback(
+    Output("fidas-time-input", "value"),
+    [Input("fidas-prev-hour", "n_clicks"),
+     Input("fidas-next-hour", "n_clicks"),
+     Input("fidas-prev-12hour", "n_clicks"),
+     Input("fidas-next-12hour", "n_clicks")],
+    State("fidas-time-input", "value"),
+    prevent_initial_call=True,
+    suppress_callback_exceptions=True
+)
+def _update_time_picker(prev_hr, next_hr, prev_12hr, next_12hr, current_time):
+    from datetime import datetime as dt, timedelta
+    
+    trig = callback_context.triggered_id
+    if not trig or not current_time:
+        return no_update
+    
+    try:
+        # Parse current time (HH:MM format)
+        current = dt.strptime(current_time, "%H:%M")
+        
+        # Map button IDs to time deltas
+        delta_map = {
+            "fidas-prev-hour": timedelta(hours=-1),
+            "fidas-next-hour": timedelta(hours=1),
+            "fidas-prev-12hour": timedelta(hours=-12),
+            "fidas-next-12hour": timedelta(hours=12),
+        }
+        
+        if trig in delta_map:
+            new_time = current + delta_map[trig]
+            return new_time.strftime("%H:%M")
+        
+        return no_update
+    except:
+        return no_update
+
+
+# single callback for both init & date-picking of fidas-current-dt
 @dash.callback(
     Output("fidas-current-dt","data"),
     [
       Input("fidas-date-range","value"),
       Input("fidas-param-checklist","value"),
-
-      Input("step-prev-min","n_clicks"),  Input("step-next-min","n_clicks"),
-      Input("step-prev-hour","n_clicks"), Input("step-next-hour","n_clicks"),
-      Input("step-prev-day","n_clicks"),  Input("step-next-day","n_clicks"),
-      Input("step-prev-month","n_clicks"),Input("step-next-month","n_clicks"),
-      Input("step-prev-year","n_clicks"), Input("step-next-year","n_clicks"),
-
-      Input("fidas-date-picker","date")
+      Input("fidas-date-picker","value"),
+      Input("fidas-time-input","value"),
+      Input("fidas-prev-day","n_clicks"),
+      Input("fidas-next-day","n_clicks"),
+      Input("fidas-prev-week","n_clicks"),
+      Input("fidas-next-week","n_clicks"),
+      Input("fidas-prev-6month","n_clicks"),
+      Input("fidas-next-6month","n_clicks"),
+      Input("fidas-prev-year","n_clicks"),
+      Input("fidas-next-year","n_clicks"),
+      Input("fidas-prev-hour","n_clicks"),
+      Input("fidas-next-hour","n_clicks"),
+      Input("fidas-prev-12hour","n_clicks"),
+      Input("fidas-next-12hour","n_clicks")
     ],
     State("fidas-current-dt","data"),
     prevent_initial_call=False
 )
 def _update_current_dt(
     dr, params,
-    prev_min, nxt_min, prev_hr, nxt_hr,
-    prev_dy, nxt_dy, prev_mo, nxt_mo,
-    prev_yr, nxt_yr,
     picked_date,
+    picked_time,
+    prev_day, next_day,
+    prev_week, next_week,
+    prev_6mo, next_6mo,
+    prev_year, next_year,
+    prev_hr, next_hr,
+    prev_12hr, next_12hr,
     cur_iso
 ):
     trig = callback_context.triggered_id
@@ -185,41 +310,79 @@ def _update_current_dt(
     if trig in ("fidas-date-range","fidas-param-checklist") and cur_iso is None:
         times = fidas.list_datetimes(dr)
         return times[-1].isoformat() if times else None
-
-    # date‐picker jump
-    if trig == "fidas-date-picker" and picked_date:
-        day = pd.to_datetime(picked_date).date()
-        for t in fidas.list_datetimes(dr):
-            if t.date()==day:
-                return t.isoformat()
+    
+    # Handle navigation buttons (date and time)
+    nav_buttons = ("fidas-prev-day", "fidas-next-day", "fidas-prev-week", "fidas-next-week",
+                   "fidas-prev-6month", "fidas-next-6month", "fidas-prev-year", "fidas-next-year",
+                   "fidas-prev-hour", "fidas-next-hour", "fidas-prev-12hour", "fidas-next-12hour")
+    
+    if trig in nav_buttons and cur_iso:
+        from datetime import timedelta
+        from datetime import datetime as dt
+        from dateutil.relativedelta import relativedelta
+        
+        current_dt = dt.fromisoformat(cur_iso)
+        
+        # Map button IDs to time deltas
+        delta_map = {
+            "fidas-prev-day": timedelta(days=-1),
+            "fidas-next-day": timedelta(days=1),
+            "fidas-prev-week": timedelta(weeks=-1),
+            "fidas-next-week": timedelta(weeks=1),
+            "fidas-prev-6month": relativedelta(months=-6),
+            "fidas-next-6month": relativedelta(months=6),
+            "fidas-prev-year": relativedelta(years=-1),
+            "fidas-next-year": relativedelta(years=1),
+            "fidas-prev-hour": timedelta(hours=-1),
+            "fidas-next-hour": timedelta(hours=1),
+            "fidas-prev-12hour": timedelta(hours=-12),
+            "fidas-next-12hour": timedelta(hours=12),
+        }
+        
+        if trig in delta_map:
+            target_dt = current_dt + delta_map[trig]
+            
+            # Find closest available datetime in data
+            available_times = fidas.list_datetimes(dr)
+            if available_times:
+                closest = min(available_times, key=lambda t: abs((t - target_dt).total_seconds()))
+                return closest.isoformat()
+        
         return cur_iso
 
-    # stepping
-    delta_map = {
-      "step-prev-min":   {"minutes": -1},
-      "step-next-min":   {"minutes": +1},
-      "step-prev-hour":  {"hours":   -1},
-      "step-next-hour":  {"hours":   +1},
-      "step-prev-day":   {"days":    -1},
-      "step-next-day":   {"days":    +1},
-      "step-prev-month": {"months":  -1},
-      "step-next-month": {"months":  +1},
-      "step-prev-year":  {"years":   -1},
-      "step-next-year":  {"years":   +1},
-    }
-    if cur_iso and trig in delta_map:
-        from dateutil.relativedelta import relativedelta
-        curr = datetime.fromisoformat(cur_iso)
-        rd = relativedelta(**delta_map[trig])
-        target = curr + rd
-        op = "$lte" if "prev" in trig else "$gte"
-        sd = -1 if "prev" in trig else 1
-        doc = fidas.collection.find_one(
-            {"datetime": {op: target}},
-            {"datetime":1,"_id":0},
-            sort=[("datetime", sd)]
-        )
-        return doc["datetime"].isoformat() if doc else cur_iso
+    # date-picker or time-input jump
+    if trig in ("fidas-date-picker", "fidas-time-input") and picked_date:
+        try:
+            # Parse the date string (format: YYYY-MM-DD from HTML5 date input)
+            if isinstance(picked_date, str):
+                day = pd.to_datetime(picked_date).date()
+            else:
+                day = picked_date
+            
+            # Parse time if provided
+            hour, minute = 0, 0
+            if picked_time:
+                try:
+                    time_parts = picked_time.split(":")
+                    hour = int(time_parts[0])
+                    minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                except:
+                    pass
+            
+            # Find closest matching datetime in available data
+            from datetime import datetime as dt
+            target_dt = dt.combine(day, dt.min.time().replace(hour=hour, minute=minute))
+            available_times = fidas.list_datetimes(dr)
+            
+            if available_times:
+                # Find the closest available time
+                closest = min(available_times, key=lambda t: abs((t - target_dt).total_seconds()))
+                return closest.isoformat()
+        except Exception as e:
+            print(f"Date/time picker error: {e}")
+            return cur_iso
+        
+        return cur_iso
 
     return cur_iso
 
@@ -236,12 +399,15 @@ def _update_current_dt(
 )
 def _render_tab(tab, dr, agg, params, cur_iso):
     if tab=="tab-timeseries":
+        # Reverse parameters so newest selections appear on top
+        if params:
+            params = list(reversed(params))
         df = fidas.fetch_time_series(dr, params, agg)
         if df.empty:
             return html.Div("No data available.", style={"color":"gray"})
         figs = fidas.create_time_series_figures(df, params)
-        return html.Div([dcc.Graph(figure=fig) for fig in figs],
-                        style={"display":"flex","flexDirection":"column","gap":"10px"})
+        return html.Div([dcc.Graph(figure=fig, style={"height":"92vh","scrollSnapAlign":"start","padding":"0","margin":"0"}) for fig in figs],
+                        style={"display":"flex","flexDirection":"column","gap":"0"})
 
     # Spectra
     if not cur_iso:
@@ -251,7 +417,11 @@ def _render_tab(tab, dr, agg, params, cur_iso):
     if not doc:
         return html.Div("Spectrum not found.", style={"color":"gray"})
     fig = fidas.create_spectrum_figure(doc["sizes"], doc["spectra"])
-    return dcc.Graph(figure=fig, style={"height":"100%"})
+    return dbc.Card([
+        dbc.CardBody([
+            dcc.Graph(figure=fig, config={'displayModeBar': False}, style={"height":"85vh","width":"100%"})
+        ], style={"padding":"10px"})
+    ], style={"height":"92vh","scrollSnapAlign":"start","border":"none","margin":"0"})
 
 
 # Download‐modal callbacks (unchanged)

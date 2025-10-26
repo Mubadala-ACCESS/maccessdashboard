@@ -72,10 +72,10 @@ layout = dbc.Container([
                     className="w-100 rounded-md",
                 ),
             ])
-        ], className="mb-2 maccess-card maccess-scrollable",
+            ], className="mb-2 maccess-card maccess-scrollable",
             style={
                 "height": "85vh",
-            }), width=3, style={"padding": "10px"}),
+            }), width=3, style={"padding": "5px"}),
 
         # Graphs Column
         dbc.Col(dbc.Card([
@@ -85,14 +85,14 @@ layout = dbc.Container([
                     dcc.Tab(label="Vertical Profiles",       value="tab-profile"),
                 ]),
                 html.Div(id="buoy-tab-content", className="maccess-scrollable", style={
-                    "height": "75vh", "padding": "10px"
+                    "height": "92vh", "padding": "0", "scrollSnapType": "y mandatory"
                 })
-            ])
+            ], style={"padding": "0"})
         ], className="mb-2 maccess-card",
             style={
-                "height": "85vh",
+                "height": "92vh",
                 "overflow": "hidden"
-            }), width=9, style={"padding": "10px"}),
+            }), width=9, style={"padding": "5px"}),
     ], class_name="mb-3", align="center"),
 
     # Download Modal
@@ -147,6 +147,9 @@ def _toggle_controls(tab):
 )
 def _render_tab(tab, dr_ts, params_ts, dr_pf, params_pf):
     if tab == "tab-timeseries":
+        # Reverse parameters so newest selections appear on top
+        if params_ts:
+            params_ts = list(reversed(params_ts))
         df = buoy.fetch_time_series(dr_ts, params_ts, agg="None")
         if df.empty:
             return html.Div("No data available.", style={"color": "gray"})
@@ -154,12 +157,15 @@ def _render_tab(tab, dr_ts, params_ts, dr_pf, params_pf):
         return html.Div([
             dcc.Graph(
                 figure=fig,
-                style={"border": "2px solid lightgray", "padding": "5px", "height": "40vh"}
+                style={"border": "none", "padding": "0", "height": "92vh", "scrollSnapAlign": "start"}
             )
             for fig in figs
-        ], style={"display": "flex", "flexDirection": "column", "gap": "10px"})
+        ], style={"display": "flex", "flexDirection": "column", "gap": "0"})
 
     # Vertical Profiles: unpack fetch_profiles() directly
+    # Reverse parameters so newest selections appear on top
+    if params_pf:
+        params_pf = list(reversed(params_pf))
     times, docs = buoy.fetch_profiles(dr_pf)
     if not times or not docs:
         return html.Div("No profile data.", style={"color": "gray"})
@@ -169,9 +175,9 @@ def _render_tab(tab, dr_ts, params_ts, dr_pf, params_pf):
         fig = buoy.create_profile_figure(times, docs, p)
         graphs.append(dcc.Graph(
             figure=fig,
-            style={"border": "2px solid lightgray", "padding": "5px", "height": "40vh"}
+            style={"border": "none", "padding": "0", "height": "92vh", "scrollSnapAlign": "start"}
         ))
-    return html.Div(graphs, style={"display": "flex", "flexDirection": "column", "gap": "10px"})
+    return html.Div(graphs, style={"display": "flex", "flexDirection": "column", "gap": "0"})
 
 
 @dash.callback(

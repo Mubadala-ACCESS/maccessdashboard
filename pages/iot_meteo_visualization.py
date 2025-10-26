@@ -106,7 +106,7 @@ layout = dbc.Container([
             ], className="mb-2 maccess-card maccess-scrollable", style={
                 "height": "85vh",
             })
-        ], width=3, className="pt-3 pb-4"),
+        ], width=3, className="py-1"),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
@@ -114,18 +114,19 @@ layout = dbc.Container([
                         id="graph-output",
                         className="maccess-scrollable",
                         style={
-                            "height": "80vh",
-                            "padding": "1rem",
+                            "height": "92vh",
+                            "padding": "0",
                             "backgroundColor": "rgba(255, 255, 255, 0.92)",
                             "overflowY": "auto",
+                            "scrollSnapType": "y mandatory",
                         },
                     )
-                ])
+                ], style={"padding": "0"})
             ], className="maccess-card", style={
-                "height": "85vh",
+                "height": "92vh",
                 "overflow": "hidden",
             })
-        ], width=9, className="pt-3 pb-4")
+        ], width=9, className="py-1")
     ], class_name="mb-3", align="center", justify="center"),
     dbc.Modal([
         dbc.ModalHeader("Download Data"),
@@ -213,6 +214,11 @@ def update_visualization(pathname, date_range, aggregation, selected_parameters,
         return html.Div("Invalid URL.", style={"color": "red"})
     device_type = parts[1].lower()
     station_num = parts[2]
+    
+    # Reverse parameters so newest selections appear on top
+    if selected_parameters:
+        selected_parameters = list(reversed(selected_parameters))
+    
     if device_type in ["meteostation", "meteorological"]:
         df = meteo_graphs.fetch_data(date_range)
         if not df.empty and "Timestamp" in df.columns:
@@ -246,16 +252,17 @@ def update_visualization(pathname, date_range, aggregation, selected_parameters,
         [
             dbc.Card(
                 dbc.CardBody(
-                    dcc.Graph(figure=fig, config={"displaylogo": False})
-                ),
+                    dcc.Graph(figure=fig, config={"displaylogo": False}, style={"height": "92vh"})
+                , style={"padding": "0"}),
                 className="maccess-card chart-card",
+                style={"scrollSnapAlign": "start", "margin": "0", "border": "none"},
             )
             for fig in figures
         ],
         style={
             "display": "flex",
             "flexDirection": "column",
-            "gap": "1rem",
+            "gap": "0",
             "overflow": "visible",
         },
     )

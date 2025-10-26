@@ -130,7 +130,7 @@ layout = dbc.Container(
                     dbc.Col(
                         [
                             html.Span(
-                                "Live coastal analytics",
+                                "Live station data",
                                 className="landing-hero-eyebrow",
                             ),
                             html.H1(
@@ -138,28 +138,8 @@ layout = dbc.Container(
                                 className="landing-hero-title",
                             ),
                             html.P(
-                                "Track real-time station health, environmental metrics, and field campaigns with a refreshed experience tuned for quick insights.",
+                                "Track real-time station health, buoy data, and fidas with a refreshed experience.",
                                 className="landing-hero-copy",
-                            ),
-                            html.Div(
-                                [
-                                    dbc.Badge(
-                                        "Real-time visibility",
-                                        color="light",
-                                        className="landing-chip",
-                                    ),
-                                    dbc.Badge(
-                                        "Flexible filters",
-                                        color="light",
-                                        className="landing-chip",
-                                    ),
-                                    dbc.Badge(
-                                        "Map-first design",
-                                        color="light",
-                                        className="landing-chip",
-                                    ),
-                                ],
-                                className="landing-chip-row",
                             ),
                         ],
                         lg=7,

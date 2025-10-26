@@ -177,6 +177,10 @@ class FidasGraphs:
             xaxis_title="Size (µm)",
             yaxis_title="Particle Count (particles/cm³)",
             template="plotly_white",
-            margin={"l":40,"r":20,"t":40,"b":40}
+            margin={"l":70,"r":30,"t":30,"b":80},
+            autosize=True,
+            height=None,
+            xaxis=dict(fixedrange=False),
+            yaxis=dict(fixedrange=False)
         )
         return fig
