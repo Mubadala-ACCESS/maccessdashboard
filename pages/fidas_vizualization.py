@@ -124,7 +124,7 @@ layout = dbc.Container([
             dcc.Tab(label="Spectra",     value="tab-spectra"),
           ]),
           html.Div(id="fidas-tab-content", style={
-            "height":"92vh","overflow-y":"auto","padding":"0","scrollSnapType":"y mandatory"
+            "height":"88vh","overflow-y":"auto","overflow-x":"hidden","padding":"20px","scrollSnapType":"y mandatory"
           })
         ], style={"padding":"0"})
       ],
@@ -406,7 +406,7 @@ def _render_tab(tab, dr, agg, params, cur_iso):
         if df.empty:
             return html.Div("No data available.", style={"color":"gray"})
         figs = fidas.create_time_series_figures(df, params)
-        return html.Div([dcc.Graph(figure=fig, style={"height":"92vh","scrollSnapAlign":"start","padding":"0","margin":"0"}) for fig in figs],
+        return html.Div([dcc.Graph(figure=fig, config={'displayModeBar': False}, style={"height":"85vh","scrollSnapAlign":"start","padding":"0","margin":"0"}) for fig in figs],
                         style={"display":"flex","flexDirection":"column","gap":"0"})
 
     # Spectra
@@ -417,11 +417,7 @@ def _render_tab(tab, dr, agg, params, cur_iso):
     if not doc:
         return html.Div("Spectrum not found.", style={"color":"gray"})
     fig = fidas.create_spectrum_figure(doc["sizes"], doc["spectra"])
-    return dbc.Card([
-        dbc.CardBody([
-            dcc.Graph(figure=fig, config={'displayModeBar': False}, style={"height":"85vh","width":"100%"})
-        ], style={"padding":"10px"})
-    ], style={"height":"92vh","scrollSnapAlign":"start","border":"none","margin":"0"})
+    return dcc.Graph(figure=fig, config={'displayModeBar': False}, style={"height":"85vh","width":"100%","scrollSnapAlign":"start","padding":"0","margin":"0"})
 
 
 # Download‐modal callbacks (unchanged)
