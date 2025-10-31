@@ -102,32 +102,31 @@ layout = dbc.Container([
                         html.Label("Individual Sensor Readings", className="fw-semibold text-uppercase text-muted small"),
                         daq.BooleanSwitch(id="split-toggle", on=False, label="OFF", labelPosition="top"),
                     ], id="sensor-readings-container"),
-                ])
-            ], className="mb-2 maccess-card maccess-scrollable", style={
-                "height": "85vh",
+                ], style={"height": "100%", "overflowY": "auto", "position": "relative"}, className="dashboard-sidebar-section")
+            ], className="maccess-card maccess-scrollable dashboard-sidebar-scroll", style={
+                "height": "100%",
             })
-        ], width=3, className="py-1"),
+        ], width=3, className="dashboard-sidebar"),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     html.Div(
                         id="graph-output",
-                        className="maccess-scrollable",
+                        className="maccess-scrollable dashboard-graph-stack",
                         style={
-                            "height": "92vh",
+                            "height": "100%",
                             "padding": "0",
                             "backgroundColor": "rgba(255, 255, 255, 0.92)",
                             "overflowY": "auto",
-                            "scrollSnapType": "y mandatory",
                         },
                     )
                 ], style={"padding": "0"})
             ], className="maccess-card", style={
-                "height": "92vh",
+                "height": "100%",
                 "overflow": "hidden",
             })
-        ], width=9, className="py-1")
-    ], class_name="mb-3", align="center", justify="center"),
+        ], width=9, className="dashboard-main")
+    ], class_name="dashboard-layout-row", align="stretch", justify="start"),
     dbc.Modal([
         dbc.ModalHeader("Download Data"),
         dbc.ModalBody([
@@ -174,7 +173,7 @@ layout = dbc.Container([
         ])
     ], id="download-modal", is_open=False),
     dcc.Download(id="download-data")
-], fluid=True)
+], fluid=True, className="dashboard-shell")
 
 @callback(
     [Output("parameter-checklist", "options"),
@@ -252,9 +251,9 @@ def update_visualization(pathname, date_range, aggregation, selected_parameters,
         [
             dbc.Card(
                 dbc.CardBody(
-                    dcc.Graph(figure=fig, config={"displaylogo": False}, style={"height": "92vh"})
+                    dcc.Graph(figure=fig, config={"displaylogo": False})
                 , style={"padding": "0"}),
-                className="maccess-card chart-card",
+                className="maccess-card dashboard-graph-card",
                 style={"scrollSnapAlign": "start", "margin": "0", "border": "none"},
             )
             for fig in figures

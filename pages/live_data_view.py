@@ -23,7 +23,9 @@ def layout(station_num=None, device_type=None):
                 html.A(
                     html.Img(src="/assets/logo.png", style={"width": "200px"}, className="rounded-pill"),
                     href="/"
-                )
+                ),
+                fluid=True,
+                className="dashboard-shell"
             ),
             color="rgb(87,6,140)",
             dark=True,
@@ -32,10 +34,10 @@ def layout(station_num=None, device_type=None):
         # Hidden store to save URL parameters (station number and device type)
         dcc.Store(id="station-info", data={"station_num": station_num, "device_type": device_type}),
         # Main content container (padding-top adjusted to avoid navbar overlap)
-        dbc.Container(id="live-data-content", style={"paddingTop": "150px"}),
+        dbc.Container(id="live-data-content", style={"paddingTop": "150px"}, className="dashboard-shell"),
         # Interval component for live updates (update every 5 seconds)
         dcc.Interval(id="live-update-interval", interval=5000, n_intervals=0)
-    ], fluid=True)
+    ], fluid=True, className="dashboard-shell")
 
 @callback(
     Output("live-data-content", "children"),

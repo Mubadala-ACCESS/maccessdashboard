@@ -287,7 +287,7 @@ layout = dbc.Container(
             className="landing-metadata-modal",
         ),
     ],
-    className="landing-container",
+    className="landing-container dashboard-shell",
     fluid=True,
 )
 

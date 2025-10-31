@@ -36,28 +36,32 @@ layout = dbc.Container([
             {"label":"Past 6 Months","value":"6M"},
             {"label":"Past 1 Year","value":"1Y"},
             {"label":"All Data","value":"All"},
-          ], value="1D", className="maccess-dropdown"),
+          ], value="1D", className="maccess-dropdown", style={"marginBottom":"12px"}),
 
-          html.Hr(className="maccess-divider"),
-          html.Label("Aggregation", className="fw-semibold text-uppercase text-muted small"),
-          dcc.Dropdown(id="fidas-aggregation", options=[
-            {"label":"None","value":"None"},
-            {"label":"Hourly","value":"H"},
-            {"label":"Daily","value":"D"},
-            {"label":"Weekly","value":"W"},
-            {"label":"Monthly","value":"M"},
-          ], value="None", className="maccess-dropdown"),
+          html.Div([
+            html.Hr(className="maccess-divider"),
+            html.Label("Aggregation", className="fw-semibold text-uppercase text-muted small"),
+            dcc.Dropdown(id="fidas-aggregation", options=[
+              {"label":"None","value":"None"},
+              {"label":"Hourly","value":"H"},
+              {"label":"Daily","value":"D"},
+              {"label":"Weekly","value":"W"},
+              {"label":"Monthly","value":"M"},
+            ], value="None", className="maccess-dropdown"),
+            html.Hr(className="maccess-divider"),
+          ], id="fidas-aggregation-controls", className="dashboard-sidebar-section"),
 
-          html.Hr(className="maccess-divider"),
-          html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small"),
-          dcc.Checklist(id="fidas-param-checklist",
-            className="fidas-param-checklist list-unstyled",
-            options=[{"label":fidas.param_labels[p],"value":p}
-                     for p in fidas.scalar_params],
-            value=["PM2.5","PMtot"]
-          ),
+          html.Div([
+            html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small"),
+            dcc.Checklist(id="fidas-param-checklist",
+              className="fidas-param-checklist list-unstyled",
+              options=[{"label":fidas.param_labels[p],"value":p}
+                       for p in fidas.scalar_params],
+              value=["PM2.5","PMtot"]
+            ),
+            html.Hr(className="maccess-divider"),
+          ], id="fidas-params-controls", className="dashboard-sidebar-section"),
 
-          html.Hr(className="maccess-divider"),
           html.Div([
             # Date Input
             html.Div([
@@ -105,16 +109,16 @@ layout = dbc.Container([
               dbc.Button("-12hr", id="fidas-prev-12hour", size="sm", color="light", className="fidas-nav-button"),
             ], style={"display":"flex", "gap":"6px", "justifyContent":"center"}),
           ], id="step-controls",
-             style={"display":"block"}),
+             style={"display":"block"}, className="dashboard-sidebar-section"),
 
           html.Hr(className="maccess-divider"),
           dbc.Button("Download Data", id="fidas-download-open", color="primary", className="w-100 rounded-md")
         ], style={"overflowY": "auto", "height": "100%", "position": "relative"})
       ],
-      className="mb-2 maccess-card",
+      className="maccess-card dashboard-sidebar-scroll",
       style={
-        "height":"85vh", "overflowX": "visible", "overflowY": "hidden"
-      }), width=4, className="p-1"),
+        "height":"100%", "overflowX": "visible", "overflowY": "hidden"
+      }), width=4, className="dashboard-sidebar"),
 
       # Graphs
       dbc.Col(dbc.Card([
@@ -123,16 +127,16 @@ layout = dbc.Container([
             dcc.Tab(label="Time Series", value="tab-timeseries"),
             dcc.Tab(label="Spectra",     value="tab-spectra"),
           ]),
-          html.Div(id="fidas-tab-content", style={
-            "height":"88vh","overflow-y":"auto","overflow-x":"hidden","padding":"20px","scrollSnapType":"y mandatory"
+          html.Div(id="fidas-tab-content", className="dashboard-graph-stack", style={
+            "height":"100%","overflow-y":"auto","overflow-x":"hidden","padding":"20px"
           })
         ], style={"padding":"0"})
       ],
-      className="mb-2 maccess-card",
+      className="maccess-card",
       style={
-        "height":"92vh","overflow":"hidden"
-      }), width=8, className="p-1")
-    ], class_name="mb-3", align="center", justify="center"),
+        "height":"100%","overflow":"hidden"
+      }), width=8, className="dashboard-main")
+    ], class_name="dashboard-layout-row", align="stretch", justify="start"),
 
     # Download Modal
     dbc.Modal([
@@ -167,7 +171,7 @@ layout = dbc.Container([
     id="fidas-download-modal", is_open=False),
 
     dcc.Download(id="fidas-download-data")
-], fluid=True)
+], fluid=True, className="dashboard-shell")
 
 
 # ─── CALLBACKS ─────────────────────────────────────────────────────
@@ -175,10 +179,18 @@ layout = dbc.Container([
 # show step‐controls only on Spectra tab
 @dash.callback(
     Output("step-controls","style"),
+    Output("fidas-aggregation-controls","style"),
+    Output("fidas-params-controls","style"),
     Input("fidas-tabs","value")
 )
-def _show_steps(tab):
-    return {"display":"block"} if tab=="tab-spectra" else {"display":"none"}
+def _toggle_controls(tab):
+    is_spectra = tab == "tab-spectra"
+    step_style = {"display":"block"} if is_spectra else {"display":"none"}
+    visible_style = {"display":"block"}
+    hidden_style = {"display":"none"}
+    agg_style = hidden_style if is_spectra else visible_style
+    params_style = hidden_style if is_spectra else visible_style
+    return step_style, agg_style, params_style
 
 
 # Callback to update date picker value when navigation buttons are clicked
@@ -406,8 +418,16 @@ def _render_tab(tab, dr, agg, params, cur_iso):
         if df.empty:
             return html.Div("No data available.", style={"color":"gray"})
         figs = fidas.create_time_series_figures(df, params)
-        return html.Div([dcc.Graph(figure=fig, config={'displayModeBar': False}, style={"height":"85vh","scrollSnapAlign":"start","padding":"0","margin":"0"}) for fig in figs],
-                        style={"display":"flex","flexDirection":"column","gap":"0"})
+        return html.Div([
+            dbc.Card(
+                dbc.CardBody(
+                    dcc.Graph(figure=fig, config={'displayModeBar': False})
+                ),
+                className="maccess-card dashboard-graph-card",
+                style={"border": "none"}
+            )
+            for fig in figs
+        ], style={"display":"flex","flexDirection":"column","gap":"0"})
 
     # Spectra
     if not cur_iso:
@@ -417,7 +437,13 @@ def _render_tab(tab, dr, agg, params, cur_iso):
     if not doc:
         return html.Div("Spectrum not found.", style={"color":"gray"})
     fig = fidas.create_spectrum_figure(doc["sizes"], doc["spectra"])
-    return dcc.Graph(figure=fig, config={'displayModeBar': False}, style={"height":"85vh","width":"100%","scrollSnapAlign":"start","padding":"0","margin":"0"})
+    return dbc.Card(
+        dbc.CardBody(
+            dcc.Graph(figure=fig, config={'displayModeBar': False})
+        ),
+        className="maccess-card dashboard-graph-card",
+        style={"border":"none"}
+    )
 
 
 # Download‐modal callbacks (unchanged)

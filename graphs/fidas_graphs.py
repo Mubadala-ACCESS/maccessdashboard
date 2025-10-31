@@ -93,6 +93,7 @@ class FidasGraphs:
         selected_params: list,
         agg: str
     ) -> pd.DataFrame:
+        selected_params = selected_params or []
         now = datetime.now(timezone.utc)
         deltas = {
             "6H":  relativedelta(hours=6),
@@ -108,8 +109,37 @@ class FidasGraphs:
         if date_range in deltas:
             match_stage = {"$match": {"datetime": {"$gte": now - deltas[date_range]}}}
 
-        # sanitize field names (no dots!)
+        # sanitize field names (no dots!) for aggregation use only
         mapping = {p: p.replace(".", "_") for p in selected_params}
+        dotted_params = [p for p in selected_params if "." in p]
+
+        # build find filter/projection for non-aggregated data
+        query_filter = match_stage.get("$match", {}) if match_stage else {}
+        projection = {"_id": 0, "datetime": 1}
+        for orig in selected_params:
+            if "." not in orig:
+                projection[orig] = 1
+
+        agg_normalized = (agg or "").lower()
+        if agg_normalized == "none":
+            cursor = (
+                self.collection
+                    .find(query_filter, projection if not dotted_params else None)
+                    .sort("datetime", 1)
+            )
+            docs = list(cursor)
+            if not docs:
+                return pd.DataFrame()
+
+            df = pd.DataFrame(docs)
+            if dotted_params:
+                keep_cols = ["datetime"] + selected_params
+                df = df.reindex(columns=keep_cols)
+            else:
+                rename_map = {safe: orig for orig, safe in mapping.items()}
+                if rename_map:
+                    df = df.rename(columns=rename_map)
+            return df
 
         # choose bin unit
         unit_map = {"H":"hour","D":"day","W":"week","M":"month"}
@@ -125,9 +155,13 @@ class FidasGraphs:
         group_stage = {"$group": {"_id": {
             "$dateTrunc": {"date": "$datetime", "unit": unit, "binSize": 1}
         }}}
-        # add sanitized avg fields
         for orig, safe in mapping.items():
-            group_stage["$group"][safe] = {"$avg": f"${orig}"}
+            if "." in orig:
+                group_stage["$group"][safe] = {
+                    "$avg": {"$getField": {"field": orig, "input": "$$ROOT"}}
+                }
+            else:
+                group_stage["$group"][safe] = {"$avg": f"${orig}"}
 
         pipeline = []
         if match_stage:
