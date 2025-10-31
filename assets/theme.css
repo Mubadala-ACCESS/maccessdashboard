@@ -114,7 +114,7 @@ a:hover {
 
 /* Card + panel styling -------------------------------------------- */
 .maccess-navbar + .landing-container .landing-hero {
-  margin-top: 0;
+  margin-top: -1rem;
 }
 
 .maccess-card {
@@ -742,10 +742,11 @@ tbody tr:hover {
 .landing-hero {
   background: var(--surface-frost);
   border-radius: var(--radius-lg);
-  padding: 1rem clamp(1rem, 2vw, 2rem);
+  padding: 0.3rem clamp(0.75rem, 1.5vw, 1.5rem);
   box-shadow: none;
   position: relative;
   overflow: hidden;
+  margin-top: -1rem;
 }
 
 .landing-hero::before {
@@ -770,9 +771,9 @@ tbody tr:hover {
 
 .landing-hero-title {
   font-family: var(--font-serif);
-  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-size: clamp(1.65rem, 3vw, 2rem);
   color: var(--color-nyu-black);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   position: relative;
   z-index: 1;
 }
@@ -806,11 +807,12 @@ tbody tr:hover {
 .landing-hero-summary {
   display: flex;
   justify-content: center;
+  align-items: stretch;
 }
 
 .landing-hero-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1.25rem;
   position: relative;
   z-index: 1;
@@ -819,13 +821,13 @@ tbody tr:hover {
 .landing-metric-card {
   background: rgba(255, 255, 255, 0.9);
   border-radius: var(--radius-md);
-  padding: 0.85rem;
+  padding: 0.65rem;
   box-shadow: none;
   border: 1px solid rgba(24, 24, 24, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-height: 140px;
+  gap: 0.2rem;
+  min-height: 110px;
 }
 
 .landing-metric-label {
@@ -837,7 +839,7 @@ tbody tr:hover {
 }
 
 .landing-metric-value {
-  font-size: clamp(1.75rem, 3.2vw, 2.4rem);
+  font-size: clamp(1.6rem, 2.8vw, 2.2rem);
   font-weight: 700;
   color: var(--color-nyu-black);
   font-family: var(--font-serif);
@@ -976,7 +978,8 @@ tbody tr:hover {
 
 @media (max-width: 992px) {
   .landing-hero {
-    padding: 0.85rem 1.25rem;
+    padding: 0.4rem 0.9rem;
+    margin-top: -0.5rem;
   }
 
   .landing-hero-metrics {

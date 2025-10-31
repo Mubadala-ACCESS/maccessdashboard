@@ -113,7 +113,6 @@ hero_metric_cards = [
                 "—" if metric["value"] is None else f"{metric['value']:,}",
                 className="landing-metric-value",
             ),
-            html.Span(metric["caption"], className="landing-metric-caption"),
         ],
         className="landing-metric-card",
     )
@@ -136,10 +135,6 @@ layout = dbc.Container(
                             html.H1(
                                 "Station Monitoring Dashboard",
                                 className="landing-hero-title",
-                            ),
-                            html.P(
-                                "Track real-time station health, buoy data, and fidas with a refreshed experience.",
-                                className="landing-hero-copy",
                             ),
                         ],
                         lg=7,
