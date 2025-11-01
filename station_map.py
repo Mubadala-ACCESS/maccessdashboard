@@ -139,7 +139,7 @@ class StationMap:
                 data_label = "Station Data"
                 data_target = "_self"
             elif dt == "Fidas_Palas":
-                data_href = "http://10.224.41.15"
+                data_href = f"/stationdata/{dt}/{station_num}"
                 data_label = "Fidas Dashboard"
                 data_target = "_blank"
             else:

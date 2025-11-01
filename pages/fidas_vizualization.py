@@ -11,7 +11,7 @@ from graphs.fidas_graphs import FidasGraphs
 
 dash.register_page(
     __name__,
-    path_template="/stationdata/fidas/<station_num>",
+    path_template="/stationdata/Fidas_Palas/<station_num>",
     title="Station Monitoring Dashboard"
 )
 
