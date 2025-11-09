@@ -211,15 +211,8 @@ class StationMap:
                 children=dl.Popup([popup])
             ))
 
-        if active:
-            if len(active) > 1:
-                lats = [c[0] for c in active]
-                lons = [c[1] for c in active]
-                map_args = {"bounds": [[min(lats), min(lons)], [max(lats), max(lons)]]}
-            else:
-                map_args = {"center": active[0], "zoom": 12}
-        else:
-            map_args = {"center": [24.53, 54.43], "zoom": 8}
+        # Fixed map view without automatic zoom
+        map_args = {"center": [24.53, 54.43], "zoom": 8}
 
         return dl.Map(
             children=[dl.TileLayer(), dl.LayerGroup(markers)],

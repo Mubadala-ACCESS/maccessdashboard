@@ -53,218 +53,133 @@ DISPLAY_NAMES = {
 dash.register_page(__name__, path="/", title="Station Monitoring Dashboard")
 station_map = StationMap(mongo_uri=MONGO_URI, db_name=DB_NAME)
 
-
-def _compute_station_summary():
-    try:
-        data = station_map.fetch_station_data()
-    except Exception:
-        return {"total": None, "online": None, "public": None, "types": None}
-
-    if not data:
-        return {"total": 0, "online": 0, "public": 0, "types": 0}
-
-    total = len(data)
-    online = sum(1 for s in data if s.get("Status") == "Online")
-    public = sum(1 for s in data if s.get("Privacy") is True)
-    device_types = {s.get("Device Type") for s in data if s.get("Device Type")}
-
-    return {
-        "total": total,
-        "online": online,
-        "public": public,
-        "types": len(device_types),
-    }
-
-
-STATION_SUMMARY = _compute_station_summary()
-
-HERO_METRICS = [
-    {
-        "label": "Stations Online",
-        "value": STATION_SUMMARY["online"],
-        "caption": "Reporting right now",
-    },
-    {
-        "label": "Stations Tracked",
-        "value": STATION_SUMMARY["total"],
-        "caption": "Across the network",
-    },
-    {
-        "label": "Public Dashboards",
-        "value": STATION_SUMMARY["public"],
-        "caption": "Open without login",
-    },
-    {
-        "label": "Station Types",
-        "value": STATION_SUMMARY["types"],
-        "caption": "Specialized monitoring nodes",
-    },
-]
-
-
-# ------------------------------------------------------------------------------
-# Layout
-# ------------------------------------------------------------------------------
-hero_metric_cards = [
-    html.Div(
-        [
-            html.Span(metric["label"], className="landing-metric-label"),
-            html.Span(
-                "—" if metric["value"] is None else f"{metric['value']:,}",
-                className="landing-metric-value",
-            ),
-        ],
-        className="landing-metric-card",
-    )
-    for metric in HERO_METRICS
-]
-
-
 layout = dbc.Container(
     [
         dcc.Location(id="url", refresh=False),
-        html.Section(
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.Span(
-                                "Live station data",
-                                className="landing-hero-eyebrow",
-                            ),
-                            html.H1(
-                                "Station Monitoring Dashboard",
-                                className="landing-hero-title",
-                            ),
-                        ],
-                        lg=7,
-                        md=8,
-                    ),
-                    dbc.Col(
-                        html.Div(hero_metric_cards, className="landing-hero-metrics"),
-                        lg=5,
-                        md=4,
-                        className="landing-hero-summary",
-                    ),
-                ],
-                className="g-4 align-items-center",
-            ),
-            className="landing-hero",
+        # Fixed sidebar toggle button
+        html.Button(
+            ">",
+            id="landing-controls-toggle",
+            n_clicks=0,
+            className="sidebar-toggle-button collapsed",
         ),
-        html.Section(
+        # Fixed sidebar panel
+        html.Div(
             dbc.Card(
                 dbc.CardBody(
                     [
                         html.Div(
                             [
-                                dcc.Input(
-                                    id="search-input",
-                                    type="text",
-                                    placeholder="Search stations by name or number...",
-                                    debounce=True,
-                                    className="landing-search-input",
-                                ),
-                                dbc.Button(
-                                    "Search",
-                                    id="search-button",
-                                    n_clicks=0,
-                                    className="landing-search-button",
+                                html.Div(
+                                    [
+                                        dcc.Input(
+                                            id="search-input",
+                                            type="text",
+                                            placeholder="Search stations...",
+                                            debounce=False,
+                                            className="landing-search-input",
+                                            style={"paddingRight": "40px"},
+                                        ),
+                                        html.Img(
+                                            id="search-icon",
+                                            src="/assets/search.svg",
+                                            className="search-icon-disabled",
+                                        ),
+                                    ],
+                                    style={"position": "relative", "width": "100%"},
                                 ),
                             ],
                             className="landing-search-control",
+                            style={"marginBottom": "1.5rem"},
                         ),
-                        html.Small(
-                            "Press Enter to trigger the search or tap Search.",
-                            className="landing-search-hint",
-                        ),
-                        dbc.Accordion(
+                        html.Div(
                             [
-                                dbc.AccordionItem(
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="privacy-dropdown",
-                                                    options=[
-                                                        {"label": "All", "value": "all"},
-                                                        {"label": "Public", "value": True},
-                                                        {"label": "Private", "value": False},
-                                                    ],
-                                                    value="all",
-                                                    className="landing-dropdown",
-                                                ),
-                                                lg=4,
-                                                md=12,
-                                            ),
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="type-dropdown",
-                                                    options=[
-                                                        {"label": "All", "value": "all"},
-                                                        {"label": "IoT Box", "value": "IoTBox"},
-                                                        {"label": "Meteorological Station", "value": "Meteorological"},
-                                                        {"label": "Buoy", "value": "Buoy"},
-                                                        {"label": "Fidas Palas 200S", "value": "Fidas_Palas"},
-                                                        {"label": "SBN Transect", "value": "SBNTransect"},
-                                                        {"label": "Jaywun Cruise", "value": "JWCruise"},
-                                                        {"label": "Underwater Probes", "value": "underwater_probe"},
-                                                        {"label": "Coral Reef Monitoring", "value": "coral_reef"},
-                                                    ],
-                                                    value="all",
-                                                    className="landing-dropdown",
-                                                ),
-                                                lg=4,
-                                                md=12,
-                                            ),
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="status-dropdown",
-                                                    options=[
-                                                        {"label": "All", "value": "all"},
-                                                        {"label": "Online", "value": "Online"},
-                                                        {"label": "Offline", "value": "Offline"},
-                                                        {"label": "Maintenance", "value": "Maintenance"},
-                                                        {"label": "Faulty", "value": "Faulty"},
-                                                        {"label": "Decommissioned", "value": "Decommissioned"},
-                                                    ],
-                                                    value="all",
-                                                    className="landing-dropdown",
-                                                ),
-                                                lg=4,
-                                                md=12,
-                                            ),
-                                        ],
-                                        className="g-3",
-                                    ),
-                                    title="Advanced filters",
+                                html.Label("Privacy", className="fw-semibold text-uppercase text-muted small mb-2"),
+                                dbc.RadioItems(
+                                    id="privacy-dropdown",
+                                    options=[
+                                        {"label": "All", "value": "all"},
+                                        {"label": "Public", "value": True},
+                                        {"label": "Private", "value": False},
+                                    ],
+                                    value="all",
+                                    className="mb-3",
                                 ),
                             ],
-                            start_collapsed=True,
-                            always_open=False,
-                            className="landing-filters-accordion",
+                        ),
+                        html.Div(
+                            [
+                                html.Label("Device Type", className="fw-semibold text-uppercase text-muted small mb-2"),
+                                dbc.RadioItems(
+                                    id="type-dropdown",
+                                    options=[
+                                        {"label": "All", "value": "all"},
+                                        {"label": "IoT Box", "value": "IoTBox"},
+                                        {"label": "Meteorological Station", "value": "Meteorological"},
+                                        {"label": "Buoy", "value": "Buoy"},
+                                        {"label": "Fidas Palas 200S", "value": "Fidas_Palas"},
+                                        {"label": "SBN Transect", "value": "SBNTransect"},
+                                        {"label": "Jaywun Cruise", "value": "JWCruise"},
+                                        {"label": "Underwater Probes", "value": "underwater_probe"},
+                                        {"label": "Coral Reef Monitoring", "value": "coral_reef"},
+                                    ],
+                                    value="all",
+                                    className="mb-3",
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            [
+                                html.Label("Status", className="fw-semibold text-uppercase text-muted small mb-2"),
+                                dbc.RadioItems(
+                                    id="status-dropdown",
+                                    options=[
+                                        {"label": "All", "value": "all"},
+                                        {"label": "Online", "value": "Online"},
+                                        {"label": "Offline", "value": "Offline"},
+                                        {"label": "Maintenance", "value": "Maintenance"},
+                                        {"label": "Faulty", "value": "Faulty"},
+                                        {"label": "Decommissioned", "value": "Decommissioned"},
+                                    ],
+                                    value="all",
+                                ),
+                            ],
                         ),
                     ],
                     className="landing-controls-body",
                 ),
                 className="landing-controls-card",
+                style={"marginTop": "0", "marginBottom": "0", "border": "none", "height": "100%"},
             ),
-            className="landing-controls",
+            id="landing-controls-sidebar",
+            className="sidebar-panel-fixed collapsed",
         ),
         html.Section(
             html.Div(
                 [
                     html.Div(
-                        id="map-output",
-                        className="landing-map-canvas",
-                    ),
-                    html.Span(
-                        "Drag, zoom, and tap markers to explore station metadata.",
-                        className="landing-map-hint",
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        id="map-output",
+                                        className="landing-map-canvas",
+                                    ),
+                                    html.Span(
+                                        "Drag, zoom, and tap markers to explore station metadata.",
+                                        className="landing-map-hint",
+                                    ),
+                                ],
+                                className="landing-map-shell",
+                            ),
+                        ],
+                        className="landing-map-column",
                     ),
                 ],
-                className="landing-map-shell",
+                id="landing-main-frame",
+                className="landing-main-frame sidebar-closed",
             ),
-            className="landing-map-section",
+            className="landing-main-section",
         ),
         dbc.Modal(
             [
@@ -284,21 +199,69 @@ layout = dbc.Container(
     ],
     className="landing-container dashboard-shell",
     fluid=True,
+    style={"paddingTop": "0", "marginTop": "0"},
 )
 
 # ------------------------------------------------------------------------------
 # Callbacks
 # ------------------------------------------------------------------------------
+
+# Clientside callback to update search icon based on input value
+dash.clientside_callback(
+    """
+    function(value) {
+        if (value && value.trim().length > 0) {
+            return 'search-icon-active';
+        }
+        return 'search-icon-disabled';
+    }
+    """,
+    Output("search-icon", "className"),
+    Input("search-input", "value"),
+)
+
+
+@dash.callback(
+    Output("landing-controls-sidebar", "className"),
+    Output("landing-controls-toggle", "children"),
+    Output("landing-controls-toggle", "className"),
+    Output("landing-main-frame", "className"),
+    Input("landing-controls-toggle", "n_clicks"),
+    State("landing-controls-sidebar", "className"),
+)
+def toggle_landing_controls(n_clicks, current_class):
+    if n_clicks is None or n_clicks == 0:
+        # Initial state: sidebar collapsed
+        return "sidebar-panel-fixed collapsed", ">", "sidebar-toggle-button collapsed", "landing-main-frame sidebar-closed"
+
+    # Check if sidebar is currently collapsed
+    is_collapsed = "collapsed" in current_class
+    
+    if is_collapsed:
+        # Expand sidebar
+        sidebar_class = "sidebar-panel-fixed"
+        arrow = "<"
+        button_class = "sidebar-toggle-button"
+        frame_class = "landing-main-frame sidebar-open"
+    else:
+        # Collapse sidebar
+        sidebar_class = "sidebar-panel-fixed collapsed"
+        arrow = ">"
+        button_class = "sidebar-toggle-button collapsed"
+        frame_class = "landing-main-frame sidebar-closed"
+    
+    return sidebar_class, arrow, button_class, frame_class
+
+
 @dash.callback(
     Output("map-output", "children"),
-    Input("search-button", "n_clicks"),
-    State("search-input", "value"),
+    Input("search-input", "value"),
     Input("privacy-dropdown", "value"),
     Input("type-dropdown", "value"),
     Input("status-dropdown", "value"),
     prevent_initial_call=False,
 )
-def update_filters(n_clicks, search_term, privacy_filter, type_filter, status_filter):
+def update_filters(search_term, privacy_filter, type_filter, status_filter):
     data = station_map.fetch_station_data()
 
     # Name fallback for IoTBox

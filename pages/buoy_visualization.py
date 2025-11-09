@@ -2,6 +2,18 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, State, callback_context
 from graphs.buoy_graphs import BuoyGraphs
+from pymongo import MongoClient
+import configparser
+import os
+
+# Load configuration
+config = configparser.ConfigParser()
+config_path = os.path.join(os.path.dirname(__file__), '../config', 'config.ini')
+config.read(config_path)
+
+MONGO_URI = config.get('mongodb', 'uri')
+DB_NAME = config.get('mongodb', 'database')
+STATIONS_INFO = config.get('mongodb', 'stations_info_collection')
 
 # Register Dash page
 dash.register_page(
@@ -25,6 +37,7 @@ DATE_RANGE_OPTIONS = [
 
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
+    html.Div(id="buoy-station-name-header", style={"marginBottom": "1rem", "marginTop": "0"}),
 
     dbc.Row([
         # Controls Column
@@ -84,9 +97,19 @@ layout = dbc.Container([
                     dcc.Tab(label="Atmospheric Parameters", value="tab-timeseries"),
                     dcc.Tab(label="Vertical Profiles",       value="tab-profile"),
                 ]),
-                html.Div(id="buoy-tab-content", className="maccess-scrollable", style={
-                    "height": "92vh", "padding": "0", "scrollSnapType": "y mandatory"
-                })
+                dcc.Loading(
+                    children=html.Div(
+                        id="buoy-tab-content",
+                        className="maccess-scrollable",
+                        style={
+                            "height": "92vh",
+                            "padding": "0",
+                            "scrollSnapType": "y mandatory"
+                        }
+                    ),
+                    type="default",
+                    className="w-100 h-100"
+                )
             ], style={"padding": "0"})
         ], className="mb-2 maccess-card",
             style={
@@ -124,6 +147,47 @@ layout = dbc.Container([
 
 
 # Callbacks
+
+@dash.callback(
+    Output("buoy-station-name-header", "children"),
+    Input("url", "pathname")
+)
+def update_buoy_station_name(pathname):
+    """Display the station name at the top of the page"""
+    if not pathname:
+        return ""
+    
+    parts = pathname.strip("/").split("/")
+    if len(parts) < 3:
+        return ""
+    
+    station_num = parts[2]
+    
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        collection = db[STATIONS_INFO]
+        
+        doc = collection.find_one({"type": "Buoy"})
+        station_name = doc.get("name", "Buoy Station") if doc else "Buoy Station"
+        
+        client.close()
+        
+        return html.H3(
+            station_name,
+            className="maccess-panel-title",
+            style={
+                "fontSize": "1.75rem",
+                "marginTop": "0",
+                "marginBottom": "0.5rem",
+                "color": "var(--color-nyu-violet-dark)",
+                "fontFamily": "var(--font-serif)"
+            }
+        )
+    except Exception as e:
+        print(f"Error fetching station name: {e}")
+        return ""
+
 
 @dash.callback(
     [Output("buoy-controls-timeseries", "style"), Output("buoy-controls-profile", "style")],

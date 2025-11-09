@@ -854,6 +854,71 @@ tbody tr:hover {
   margin-top: 1rem;
 }
 
+.landing-main-section {
+  margin-top: -1.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.landing-main-frame {
+  display: flex;
+  gap: 1.25rem;
+  align-items: stretch;
+  min-height: calc(100vh - 8rem);
+}
+
+.landing-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.landing-controls-toggle {
+  align-self: flex-start;
+  width: clamp(220px, 26vw, 320px);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+
+.landing-controls-collapse {
+  width: clamp(260px, 28vw, 360px);
+}
+
+.landing-controls-collapse.show {
+  display: flex !important;
+}
+
+.landing-controls-collapse .landing-controls-card {
+  flex: 1 1 auto;
+  display: flex;
+}
+
+.landing-controls-collapse .landing-controls-card .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.landing-map-column {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+}
+
+.landing-map-column .landing-map-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-controls-card .Select-menu-outer {
+  z-index: 2500 !important;
+}
+
 .landing-controls-card {
   border-radius: var(--radius-lg);
   border: 1px solid rgba(24, 24, 24, 0.1);
@@ -986,6 +1051,14 @@ tbody tr:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .landing-controls-toggle {
+    width: clamp(220px, 40vw, 320px);
+  }
+
+  .landing-controls-collapse {
+    width: clamp(240px, 42vw, 340px);
+  }
+
   .landing-map-canvas {
     height: clamp(500px, 68vh, 900px);
   }
@@ -1022,6 +1095,36 @@ tbody tr:hover {
     justify-content: center;
   }
 
+  .landing-main-frame {
+    flex-direction: column;
+    min-height: calc(100vh - 7rem);
+  }
+
+  .landing-side-panel {
+    width: 100%;
+    max-height: 48vh;
+  }
+
+  .landing-controls-toggle {
+    width: 100%;
+  }
+
+  .landing-controls-collapse {
+    width: 100%;
+  }
+
+  .landing-side-panel .landing-controls-card {
+    height: 100%;
+  }
+
+  .landing-side-panel .landing-controls-card .card-body {
+    overflow-y: auto;
+  }
+
+  .landing-map-column {
+    min-height: 52vh;
+  }
+
   .landing-map-canvas {
     height: 500px;
   }
@@ -1040,5 +1143,132 @@ tbody tr:hover {
     min-height: auto;
     padding: 0.75rem;
   }
+}
+
+/* Fixed collapsible sidebar toggle */
+.sidebar-toggle-button {
+  position: fixed;
+  left: 320px;
+  bottom: 5px;
+  z-index: 1020;
+  width: 24px;
+  height: 80px;
+  background: var(--color-nyu-violet);
+  color: white;
+  border: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: left var(--transition-medium), background var(--transition-fast), width var(--transition-fast);
+  box-shadow: 2px 0 8px rgba(87, 6, 140, 0.3);
+}
+
+.sidebar-toggle-button:hover {
+  background: var(--color-nyu-violet-dark);
+  width: 28px;
+}
+
+.sidebar-toggle-button.collapsed {
+  left: 0;
+}
+
+/* Fixed sidebar panel */
+.sidebar-panel-fixed {
+  position: fixed;
+  left: 0;
+  top: 68px;
+  bottom: 0;
+  width: 320px;
+  z-index: 1015;
+  overflow-y: auto;
+  background: var(--surface-frost);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  transition: transform var(--transition-medium);
+}
+
+.sidebar-panel-fixed.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Adjust main content when sidebar is visible */
+.landing-main-frame.sidebar-open {
+  margin-left: 0;
+  transition: margin-left var(--transition-medium);
+}
+
+.landing-main-frame.sidebar-closed {
+  margin-left: 0;
+  transition: margin-left var(--transition-medium);
+}
+
+@media (max-width: 768px) {
+  .sidebar-toggle-button {
+    width: 20px;
+    height: 70px;
+    font-size: 1.25rem;
+    bottom: 5px;
+    left: 280px;
+  }
+  
+  .sidebar-toggle-button.collapsed {
+    left: 0;
+  }
+  
+  .sidebar-panel-fixed {
+    width: 280px;
+  }
+}
+
+/* Radio button styling for sidebar filters */
+.landing-filters-accordion .form-check-input {
+  border-color: rgba(87, 6, 140, 0.3);
+}
+
+.landing-filters-accordion .form-check-input:checked {
+  background-color: var(--color-nyu-violet);
+  border-color: var(--color-nyu-violet);
+}
+
+.landing-filters-accordion .form-check-label {
+  color: var(--color-nyu-charcoal);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.landing-filters-accordion .form-check {
+  margin-bottom: 0.5rem;
+}
+
+/* Search icon styling */
+#search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  transition: all var(--transition-fast);
+  pointer-events: none;
+}
+
+.search-icon-disabled {
+  opacity: 0.3;
+  filter: grayscale(100%);
+}
+
+.search-icon-active {
+  opacity: 1;
+  filter: invert(15%) sepia(98%) saturate(4500%) hue-rotate(268deg) brightness(60%) contrast(120%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.search-icon-active:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
 }
 

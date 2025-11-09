@@ -48,6 +48,7 @@ def add_location_info(df, station_num):
 
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
+    html.Div(id="station-name-header", style={"marginBottom": "1rem", "marginTop": "0"}),
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -110,15 +111,19 @@ layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.Div(
-                        id="graph-output",
-                        className="maccess-scrollable dashboard-graph-stack",
-                        style={
-                            "height": "100%",
-                            "padding": "0",
-                            "backgroundColor": "rgba(255, 255, 255, 0.92)",
-                            "overflowY": "auto",
-                        },
+                    dcc.Loading(
+                        children=html.Div(
+                            id="graph-output",
+                            className="maccess-scrollable dashboard-graph-stack",
+                            style={
+                                "height": "100%",
+                                "padding": "0",
+                                "backgroundColor": "rgba(255, 255, 255, 0.92)",
+                                "overflowY": "auto",
+                            },
+                        ),
+                        type="default",
+                        className="w-100 h-100"
                     )
                 ], style={"padding": "0"})
             ], className="maccess-card", style={
@@ -174,6 +179,55 @@ layout = dbc.Container([
     ], id="download-modal", is_open=False),
     dcc.Download(id="download-data")
 ], fluid=True, className="dashboard-shell")
+
+@callback(
+    Output("station-name-header", "children"),
+    Input("url", "pathname")
+)
+def update_station_name(pathname):
+    """Display the station name at the top of the page"""
+    if not pathname:
+        return ""
+    
+    parts = pathname.strip("/").split("/")
+    if len(parts) < 3:
+        return ""
+    
+    device_type = parts[1].lower()
+    station_num = parts[2]
+    
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        collection = db[STATIONS_INFO]
+        
+        if device_type in ["meteostation", "meteorological"]:
+            doc = collection.find_one({"type": "Meteorological"})
+            station_name = doc.get("name", "Meteorological Station") if doc else "Meteorological Station"
+        else:
+            if station_num.isdigit():
+                doc = collection.find_one({"station_num": int(station_num)})
+                station_name = doc.get("name", f"Station {station_num}") if doc else f"Station {station_num}"
+            else:
+                station_name = "Unknown Station"
+        
+        client.close()
+        
+        return html.H3(
+            station_name,
+            className="maccess-panel-title",
+            style={
+                "fontSize": "1.75rem",
+                "marginTop": "0",
+                "marginBottom": "0.5rem",
+                "color": "var(--color-nyu-violet-dark)",
+                "fontFamily": "var(--font-serif)"
+            }
+        )
+    except Exception as e:
+        print(f"Error fetching station name: {e}")
+        return ""
+
 
 @callback(
     [Output("parameter-checklist", "options"),

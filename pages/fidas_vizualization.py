@@ -5,9 +5,20 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, State, callback_context, no_update
 import pandas as pd
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 import plotly.graph_objects as go
 from graphs.fidas_graphs import FidasGraphs
+from pymongo import MongoClient
+import configparser
+import os
+
+# Load configuration
+config = configparser.ConfigParser()
+config_path = os.path.join(os.path.dirname(__file__), '../config', 'config.ini')
+config.read(config_path)
+
+MONGO_URI = config.get('mongodb', 'uri')
+DB_NAME = config.get('mongodb', 'database')
+STATIONS_INFO = config.get('mongodb', 'stations_info_collection')
 
 dash.register_page(
     __name__,
@@ -20,6 +31,7 @@ fidas = FidasGraphs()
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
     dcc.Store(id="fidas-current-dt"),
+    html.Div(id="fidas-station-name-header", style={"marginBottom": "1rem", "marginTop": "0"}),
 
     dbc.Row([
       # Controls
@@ -73,23 +85,13 @@ layout = dbc.Container([
                 size="sm"
               ),
             ], style={"display":"flex", "justifyContent":"center", "marginBottom":"8px"}),
-            
-            # Week/Day Navigation
+
+            # Day Navigation
             html.Div([
-              dbc.Button("+1w", id="fidas-next-week", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("+1d", id="fidas-next-day", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("-1d", id="fidas-prev-day", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("-1w", id="fidas-prev-week", size="sm", color="light", className="fidas-nav-button"),
-            ], style={"display":"flex", "gap":"6px", "justifyContent":"center", "marginBottom":"8px"}),
-            
-            # Year/Month Navigation
-            html.Div([
-              dbc.Button("+1yr", id="fidas-next-year", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("+6mo", id="fidas-next-6month", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("-6mo", id="fidas-prev-6month", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("-1yr", id="fidas-prev-year", size="sm", color="light", className="fidas-nav-button"),
-            ], style={"display":"flex", "gap":"6px", "justifyContent":"center", "marginBottom":"8px"}),
-            
+              dbc.Button("< 1d", id="fidas-prev-day", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("1d >", id="fidas-next-day", size="sm", color="light", className="fidas-nav-button"),
+            ], style={"display":"flex", "gap":"6px", "justifyContent":"center", "marginBottom":"12px"}),
+
             # Time Input
             html.Div([
               dbc.Input(
@@ -100,13 +102,13 @@ layout = dbc.Container([
                 size="sm"
               ),
             ], style={"display":"flex", "justifyContent":"center", "marginBottom":"8px"}),
-            
-            # Hour Navigation
+
+            # Hour/Minute Navigation
             html.Div([
-              dbc.Button("+12hr", id="fidas-next-12hour", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("+1hr", id="fidas-next-hour", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("-1hr", id="fidas-prev-hour", size="sm", color="light", className="fidas-nav-button"),
-              dbc.Button("-12hr", id="fidas-prev-12hour", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("< 1hr", id="fidas-prev-hour", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("< 1min", id="fidas-prev-minute", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("1min >", id="fidas-next-minute", size="sm", color="light", className="fidas-nav-button"),
+              dbc.Button("1hr >", id="fidas-next-hour", size="sm", color="light", className="fidas-nav-button"),
             ], style={"display":"flex", "gap":"6px", "justifyContent":"center"}),
           ], id="step-controls",
              style={"display":"block"}, className="dashboard-sidebar-section"),
@@ -127,9 +129,20 @@ layout = dbc.Container([
             dcc.Tab(label="Time Series", value="tab-timeseries"),
             dcc.Tab(label="Spectra",     value="tab-spectra"),
           ]),
-          html.Div(id="fidas-tab-content", className="dashboard-graph-stack", style={
-            "height":"100%","overflow-y":"auto","overflow-x":"hidden","padding":"20px"
-          })
+          dcc.Loading(
+            children=html.Div(
+              id="fidas-tab-content",
+              className="dashboard-graph-stack",
+              style={
+                "height": "100%",
+                "overflow-y": "auto",
+                "overflow-x": "hidden",
+                "padding": "20px"
+              }
+            ),
+            type="default",
+            className="w-100 h-100"
+          )
         ], style={"padding":"0"})
       ],
       className="maccess-card",
@@ -176,6 +189,47 @@ layout = dbc.Container([
 
 # ─── CALLBACKS ─────────────────────────────────────────────────────
 
+@dash.callback(
+    Output("fidas-station-name-header", "children"),
+    Input("url", "pathname")
+)
+def update_fidas_station_name(pathname):
+    """Display the station name at the top of the page"""
+    if not pathname:
+        return ""
+    
+    parts = pathname.strip("/").split("/")
+    if len(parts) < 3:
+        return ""
+    
+    station_num = parts[2]
+    
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        collection = db[STATIONS_INFO]
+        
+        doc = collection.find_one({"type": "Fidas_Palas"})
+        station_name = doc.get("name", "Fidas Palas 200S") if doc else "Fidas Palas 200S"
+        
+        client.close()
+        
+        return html.H3(
+            station_name,
+            className="maccess-panel-title",
+            style={
+                "fontSize": "1.75rem",
+                "marginTop": "0",
+                "marginBottom": "0.5rem",
+                "color": "var(--color-nyu-violet-dark)",
+                "fontFamily": "var(--font-serif)"
+            }
+        )
+    except Exception as e:
+        print(f"Error fetching station name: {e}")
+        return ""
+
+
 # show step‐controls only on Spectra tab
 @dash.callback(
     Output("step-controls","style"),
@@ -197,21 +251,13 @@ def _toggle_controls(tab):
 @dash.callback(
     Output("fidas-date-picker", "value"),
     [Input("fidas-prev-day", "n_clicks"),
-     Input("fidas-next-day", "n_clicks"),
-     Input("fidas-prev-week", "n_clicks"),
-     Input("fidas-next-week", "n_clicks"),
-     Input("fidas-prev-6month", "n_clicks"),
-     Input("fidas-next-6month", "n_clicks"),
-     Input("fidas-prev-year", "n_clicks"),
-     Input("fidas-next-year", "n_clicks")],
+     Input("fidas-next-day", "n_clicks")],
     State("fidas-date-picker", "value"),
     prevent_initial_call=True,
     suppress_callback_exceptions=True
 )
-def _update_date_picker(prev_day, next_day, prev_week, next_week, 
-                        prev_6mo, next_6mo, prev_year, next_year, current_date):
+def _update_date_picker(prev_day, next_day, current_date):
     from datetime import datetime as dt, timedelta
-    from dateutil.relativedelta import relativedelta
     
     trig = callback_context.triggered_id
     if not trig or not current_date:
@@ -224,12 +270,6 @@ def _update_date_picker(prev_day, next_day, prev_week, next_week,
         delta_map = {
             "fidas-prev-day": timedelta(days=-1),
             "fidas-next-day": timedelta(days=1),
-            "fidas-prev-week": timedelta(weeks=-1),
-            "fidas-next-week": timedelta(weeks=1),
-            "fidas-prev-6month": relativedelta(months=-6),
-            "fidas-next-6month": relativedelta(months=6),
-            "fidas-prev-year": relativedelta(years=-1),
-            "fidas-next-year": relativedelta(years=1),
         }
         
         if trig in delta_map:
@@ -246,13 +286,13 @@ def _update_date_picker(prev_day, next_day, prev_week, next_week,
     Output("fidas-time-input", "value"),
     [Input("fidas-prev-hour", "n_clicks"),
      Input("fidas-next-hour", "n_clicks"),
-     Input("fidas-prev-12hour", "n_clicks"),
-     Input("fidas-next-12hour", "n_clicks")],
+     Input("fidas-prev-minute", "n_clicks"),
+     Input("fidas-next-minute", "n_clicks")],
     State("fidas-time-input", "value"),
     prevent_initial_call=True,
     suppress_callback_exceptions=True
 )
-def _update_time_picker(prev_hr, next_hr, prev_12hr, next_12hr, current_time):
+def _update_time_picker(prev_hr, next_hr, prev_min, next_min, current_time):
     from datetime import datetime as dt, timedelta
     
     trig = callback_context.triggered_id
@@ -267,8 +307,8 @@ def _update_time_picker(prev_hr, next_hr, prev_12hr, next_12hr, current_time):
         delta_map = {
             "fidas-prev-hour": timedelta(hours=-1),
             "fidas-next-hour": timedelta(hours=1),
-            "fidas-prev-12hour": timedelta(hours=-12),
-            "fidas-next-12hour": timedelta(hours=12),
+            "fidas-prev-minute": timedelta(minutes=-1),
+            "fidas-next-minute": timedelta(minutes=1),
         }
         
         if trig in delta_map:
@@ -290,16 +330,10 @@ def _update_time_picker(prev_hr, next_hr, prev_12hr, next_12hr, current_time):
       Input("fidas-time-input","value"),
       Input("fidas-prev-day","n_clicks"),
       Input("fidas-next-day","n_clicks"),
-      Input("fidas-prev-week","n_clicks"),
-      Input("fidas-next-week","n_clicks"),
-      Input("fidas-prev-6month","n_clicks"),
-      Input("fidas-next-6month","n_clicks"),
-      Input("fidas-prev-year","n_clicks"),
-      Input("fidas-next-year","n_clicks"),
       Input("fidas-prev-hour","n_clicks"),
       Input("fidas-next-hour","n_clicks"),
-      Input("fidas-prev-12hour","n_clicks"),
-      Input("fidas-next-12hour","n_clicks")
+      Input("fidas-prev-minute","n_clicks"),
+      Input("fidas-next-minute","n_clicks")
     ],
     State("fidas-current-dt","data"),
     prevent_initial_call=False
@@ -309,11 +343,8 @@ def _update_current_dt(
     picked_date,
     picked_time,
     prev_day, next_day,
-    prev_week, next_week,
-    prev_6mo, next_6mo,
-    prev_year, next_year,
     prev_hr, next_hr,
-    prev_12hr, next_12hr,
+    prev_min, next_min,
     cur_iso
 ):
     trig = callback_context.triggered_id
@@ -324,14 +355,16 @@ def _update_current_dt(
         return times[-1].isoformat() if times else None
     
     # Handle navigation buttons (date and time)
-    nav_buttons = ("fidas-prev-day", "fidas-next-day", "fidas-prev-week", "fidas-next-week",
-                   "fidas-prev-6month", "fidas-next-6month", "fidas-prev-year", "fidas-next-year",
-                   "fidas-prev-hour", "fidas-next-hour", "fidas-prev-12hour", "fidas-next-12hour")
+    nav_buttons = (
+        "fidas-prev-day", "fidas-next-day",
+        "fidas-prev-hour", "fidas-next-hour",
+        "fidas-prev-minute", "fidas-next-minute"
+    )
     
     if trig in nav_buttons and cur_iso:
+        from bisect import bisect_left, bisect_right
         from datetime import timedelta
         from datetime import datetime as dt
-        from dateutil.relativedelta import relativedelta
         
         current_dt = dt.fromisoformat(cur_iso)
         
@@ -339,26 +372,39 @@ def _update_current_dt(
         delta_map = {
             "fidas-prev-day": timedelta(days=-1),
             "fidas-next-day": timedelta(days=1),
-            "fidas-prev-week": timedelta(weeks=-1),
-            "fidas-next-week": timedelta(weeks=1),
-            "fidas-prev-6month": relativedelta(months=-6),
-            "fidas-next-6month": relativedelta(months=6),
-            "fidas-prev-year": relativedelta(years=-1),
-            "fidas-next-year": relativedelta(years=1),
             "fidas-prev-hour": timedelta(hours=-1),
             "fidas-next-hour": timedelta(hours=1),
-            "fidas-prev-12hour": timedelta(hours=-12),
-            "fidas-next-12hour": timedelta(hours=12),
+            "fidas-prev-minute": timedelta(minutes=-1),
+            "fidas-next-minute": timedelta(minutes=1),
         }
         
         if trig in delta_map:
-            target_dt = current_dt + delta_map[trig]
-            
-            # Find closest available datetime in data
             available_times = fidas.list_datetimes(dr)
-            if available_times:
-                closest = min(available_times, key=lambda t: abs((t - target_dt).total_seconds()))
-                return closest.isoformat()
+            if not available_times:
+                return cur_iso
+            
+            target_dt = current_dt + delta_map[trig]
+            forward_buttons = {"fidas-next-day", "fidas-next-hour", "fidas-next-minute"}
+            timestamps = [t.timestamp() for t in available_times]
+            curr_ts = current_dt.timestamp()
+            target_ts = target_dt.timestamp()
+            
+            if trig in forward_buttons:
+                idx = bisect_left(timestamps, target_ts)
+                if idx < len(available_times):
+                    return available_times[idx].isoformat()
+                idx = bisect_right(timestamps, curr_ts)
+                if idx < len(available_times):
+                    return available_times[idx].isoformat()
+                return available_times[-1].isoformat()
+            else:
+                idx = bisect_right(timestamps, target_ts) - 1
+                if idx >= 0:
+                    return available_times[idx].isoformat()
+                idx = bisect_left(timestamps, curr_ts) - 1
+                if idx >= 0:
+                    return available_times[idx].isoformat()
+                return available_times[0].isoformat()
         
         return cur_iso
 
@@ -421,7 +467,7 @@ def _render_tab(tab, dr, agg, params, cur_iso):
         return html.Div([
             dbc.Card(
                 dbc.CardBody(
-                    dcc.Graph(figure=fig, config={'displayModeBar': False})
+                    dcc.Graph(figure=fig, config={'displayModeBar': True, 'displaylogo': False})
                 ),
                 className="maccess-card dashboard-graph-card",
                 style={"border": "none"}
@@ -439,7 +485,7 @@ def _render_tab(tab, dr, agg, params, cur_iso):
     fig = fidas.create_spectrum_figure(doc["sizes"], doc["spectra"])
     return dbc.Card(
         dbc.CardBody(
-            dcc.Graph(figure=fig, config={'displayModeBar': False})
+            dcc.Graph(figure=fig, config={'displayModeBar': True, 'displaylogo': False})
         ),
         className="maccess-card dashboard-graph-card",
         style={"border":"none"}
