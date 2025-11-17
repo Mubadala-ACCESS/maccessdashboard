@@ -48,7 +48,8 @@ def add_location_info(df, station_num):
 
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
-    html.Div(id="station-name-header", style={"marginBottom": "1rem", "marginTop": "0"}),
+    html.Div(id="station-name-header", style={"marginBottom": "0.5rem", "marginTop": "0"}),
+    html.Div(id="station-status-alert", style={"marginBottom": "0.5rem"}),
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -178,7 +179,7 @@ layout = dbc.Container([
         ])
     ], id="download-modal", is_open=False),
     dcc.Download(id="download-data")
-], fluid=True, className="dashboard-shell")
+], fluid=True, className="dashboard-shell", style={"marginTop": "-50px"})
 
 @callback(
     Output("station-name-header", "children"),
@@ -204,29 +205,157 @@ def update_station_name(pathname):
         if device_type in ["meteostation", "meteorological"]:
             doc = collection.find_one({"type": "Meteorological"})
             station_name = doc.get("name", "Meteorological Station") if doc else "Meteorological Station"
+            station_status = doc.get("status", "Unknown") if doc else "Unknown"
         else:
             if station_num.isdigit():
                 doc = collection.find_one({"station_num": int(station_num)})
                 station_name = doc.get("name", f"Station {station_num}") if doc else f"Station {station_num}"
+                station_status = doc.get("status", "Unknown") if doc else "Unknown"
             else:
                 station_name = "Unknown Station"
+                station_status = "Unknown"
         
         client.close()
         
-        return html.H3(
-            station_name,
-            className="maccess-panel-title",
-            style={
-                "fontSize": "1.75rem",
-                "marginTop": "0",
-                "marginBottom": "0.5rem",
-                "color": "var(--color-nyu-violet-dark)",
-                "fontFamily": "var(--font-serif)"
+        # Create status badge if station is under maintenance or other non-operational status
+        status_badge = None
+        if station_status in ["Maintenance", "Faulty", "Offline", "Decommissioned"]:
+            status_colors = {
+                "Maintenance": "#f7a046",  # warning orange
+                "Faulty": "#e65252",       # danger red
+                "Offline": "#8f90a0",      # gray
+                "Decommissioned": "#8f90a0"  # gray
             }
-        )
+            status_badge = html.Span(
+                station_status.upper(),
+                style={
+                    "backgroundColor": status_colors.get(station_status, "#f7a046"),
+                    "color": "white",
+                    "padding": "0.35rem 0.75rem",
+                    "borderRadius": "4px",
+                    "fontSize": "0.85rem",
+                    "fontWeight": "700",
+                    "letterSpacing": "0.05em",
+                    "marginLeft": "1rem",
+                    "verticalAlign": "middle"
+                }
+            )
+        
+        return html.Div([
+            html.H3(
+                [station_name, status_badge] if status_badge else station_name,
+                className="maccess-panel-title",
+                style={
+                    "fontSize": "1.75rem",
+                    "marginTop": "0",
+                    "marginBottom": "0.25rem",
+                    "color": "var(--color-nyu-violet-dark)",
+                    "fontFamily": "var(--font-serif)"
+                }
+            )
+        ])
     except Exception as e:
         print(f"Error fetching station name: {e}")
         return ""
+
+
+@callback(
+    Output("station-status-alert", "children"),
+    Input("url", "pathname")
+)
+def update_station_status_alert(pathname):
+    """Display a prominent alert banner if station has no recent data or has status issues"""
+    if not pathname:
+        return None
+    
+    parts = pathname.strip("/").split("/")
+    if len(parts) < 3:
+        return None
+    
+    device_type = parts[1].lower()
+    station_num = parts[2]
+    
+    try:
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        stations_collection = db[STATIONS_INFO]
+        
+        # Get station info and manual status
+        if device_type in ["meteostation", "meteorological"]:
+            doc = stations_collection.find_one({"type": "Meteorological"})
+            data_collection = db[config.get('mongodb', 'f1_meteo_collection')]
+            time_field = "Timestamp"
+        else:
+            if station_num.isdigit():
+                doc = stations_collection.find_one({"station_num": int(station_num)})
+                data_collection = db[f"station{station_num}"]
+                time_field = "datetime"
+            else:
+                client.close()
+                return None
+        
+        manual_status = doc.get("status", "Unknown") if doc else "Unknown"
+        
+        # Check for recent data (within last 24 hours)
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        twenty_four_hours_ago = now - timedelta(hours=24)
+        
+        # Query for the most recent data point
+        try:
+            recent_data = data_collection.find_one(
+                {time_field: {"$gte": twenty_four_hours_ago}},
+                sort=[(time_field, -1)]
+            )
+            has_recent_data = recent_data is not None
+        except Exception:
+            has_recent_data = False
+        
+        client.close()
+        
+        # Determine status: prioritize lack of recent data, then manual status
+        if not has_recent_data:
+            # No data in last 24 hours - station is likely offline or faulty
+            if manual_status == "Maintenance":
+                return dbc.Alert([
+                    html.I(className="fas fa-tools me-2"),
+                    html.Strong("Station Under Maintenance:"),
+                    html.Span("This station is currently undergoing maintenance. No data received in the last 24 hours.", className="ms-2")
+                ], color="warning", className="mb-3")
+            elif manual_status == "Decommissioned":
+                return dbc.Alert([
+                    html.I(className="fas fa-archive me-2"),
+                    html.Strong("Station Decommissioned:"),
+                    html.Span(" This station has been decommissioned. Only historical data is available.", className="ms-2")
+                ], color="secondary", className="mb-3")
+            else:
+                # No manual status, but no recent data
+                return dbc.Alert([
+                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    html.Strong("No Recent Data:"),
+                    html.Span(" This station has not transmitted data in the last 24 hours. It may be offline or experiencing technical issues.", className="ms-2")
+                ], color="warning", className="mb-3")
+        
+        # Has recent data, check manual status only
+        if manual_status == "Maintenance":
+            return dbc.Alert([
+                html.I(className="fas fa-tools me-2"),
+                html.Strong("Station Under Maintenance:"),
+                html.Span(" — This station is currently undergoing maintenance. Data may be limited.", className="ms-2")
+            ], color="warning", className="mb-3")
+        elif manual_status == "Faulty":
+            return dbc.Alert([
+                html.I(className="fas fa-exclamation-triangle me-2"),
+                html.Strong("Station Reporting Issues:"),
+                html.Span("This station is experiencing technical issues. Data may be unreliable.", className="ms-2")
+            ], color="danger", className="mb-3")
+        
+        # Station is operational with recent data
+        return None
+        
+    except Exception as e:
+        print(f"Error checking station status: {e}")
+        return None
 
 
 @callback(

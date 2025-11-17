@@ -31,7 +31,8 @@ fidas = FidasGraphs()
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
     dcc.Store(id="fidas-current-dt"),
-    html.Div(id="fidas-station-name-header", style={"marginBottom": "1rem", "marginTop": "0"}),
+    html.Div(id="fidas-station-name-header", style={"marginBottom": "0.5rem", "marginTop": "0"}),
+    html.Div(id="fidas-status-alert", style={"marginBottom": "0.5rem"}),
 
     dbc.Row([
       # Controls
@@ -184,7 +185,7 @@ layout = dbc.Container([
     id="fidas-download-modal", is_open=False),
 
     dcc.Download(id="fidas-download-data")
-], fluid=True, className="dashboard-shell")
+], fluid=True, className="dashboard-shell", style={"marginTop": "-50px"})
 
 
 # ─── CALLBACKS ─────────────────────────────────────────────────────
@@ -211,23 +212,128 @@ def update_fidas_station_name(pathname):
         
         doc = collection.find_one({"type": "Fidas_Palas"})
         station_name = doc.get("name", "Fidas Palas 200S") if doc else "Fidas Palas 200S"
+        station_status = doc.get("status", "Unknown") if doc else "Unknown"
         
         client.close()
         
-        return html.H3(
-            station_name,
-            className="maccess-panel-title",
-            style={
-                "fontSize": "1.75rem",
-                "marginTop": "0",
-                "marginBottom": "0.5rem",
-                "color": "var(--color-nyu-violet-dark)",
-                "fontFamily": "var(--font-serif)"
+        # Create status badge if station is under maintenance or other non-operational status
+        status_badge = None
+        if station_status in ["Maintenance", "Faulty", "Offline", "Decommissioned"]:
+            status_colors = {
+                "Maintenance": "#f7a046",  # warning orange
+                "Faulty": "#e65252",       # danger red
+                "Offline": "#8f90a0",      # gray
+                "Decommissioned": "#8f90a0"  # gray
             }
-        )
+            status_badge = html.Span(
+                station_status.upper(),
+                style={
+                    "backgroundColor": status_colors.get(station_status, "#f7a046"),
+                    "color": "white",
+                    "padding": "0.35rem 0.75rem",
+                    "borderRadius": "4px",
+                    "fontSize": "0.85rem",
+                    "fontWeight": "700",
+                    "letterSpacing": "0.05em",
+                    "marginLeft": "1rem",
+                    "verticalAlign": "middle"
+                }
+            )
+        
+        return html.Div([
+            html.H3(
+                [station_name, status_badge] if status_badge else station_name,
+                className="maccess-panel-title",
+                style={
+                    "fontSize": "1.75rem",
+                    "marginTop": "0",
+                    "marginBottom": "0.25rem",
+                    "color": "var(--color-nyu-violet-dark)",
+                    "fontFamily": "var(--font-serif)"
+                }
+            )
+        ])
     except Exception as e:
         print(f"Error fetching station name: {e}")
         return ""
+
+
+@dash.callback(
+    Output("fidas-status-alert", "children"),
+    Input("url", "pathname")
+)
+def update_fidas_status_alert(pathname):
+    """Display a prominent alert banner if station has no recent data or has status issues"""
+    if not pathname:
+        return None
+    
+    try:
+        from datetime import datetime, timedelta, timezone
+        
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        stations_collection = db[STATIONS_INFO]
+        
+        # Get station info and manual status
+        doc = stations_collection.find_one({"type": "Fidas_Palas"})
+        manual_status = doc.get("status", "Unknown") if doc else "Unknown"
+        
+        # Check for recent data (within last 24 hours)
+        fidas_collection = db["fidas_nyuad"]
+        now = datetime.now(timezone.utc)
+        twenty_four_hours_ago = now - timedelta(hours=24)
+        
+        try:
+            recent_data = fidas_collection.find_one(
+                {"datetime": {"$gte": twenty_four_hours_ago}},
+                sort=[("datetime", -1)]
+            )
+            has_recent_data = recent_data is not None
+        except Exception:
+            has_recent_data = False
+        
+        client.close()
+        
+        # Determine status: prioritize lack of recent data, then manual status
+        if not has_recent_data:
+            if manual_status == "Maintenance":
+                return dbc.Alert([
+                    html.I(className="fas fa-tools me-2"),
+                    html.Strong("Station Under Maintenance:"),
+                    html.Span("This station is currently undergoing maintenance. No data received in the last 24 hours.", className="ms-2")
+                ], color="warning", className="mb-3")
+            elif manual_status == "Decommissioned":
+                return dbc.Alert([
+                    html.I(className="fas fa-archive me-2"),
+                    html.Strong("Station Decommissioned:"),
+                    html.Span("This station has been decommissioned. Only historical data is available.", className="ms-2")
+                ], color="secondary", className="mb-3")
+            else:
+                return dbc.Alert([
+                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    html.Strong("No Recent Data:"),
+                    html.Span("This station has not transmitted data in the last 24 hours. It may be offline or experiencing technical issues.", className="ms-2")
+                ], color="warning", className="mb-3")
+        
+        # Has recent data, check manual status only
+        if manual_status == "Maintenance":
+            return dbc.Alert([
+                html.I(className="fas fa-tools me-2"),
+                html.Strong("Station Under Maintenance:"),
+                html.Span("This station is currently undergoing maintenance. Data may be limited.", className="ms-2")
+            ], color="warning", className="mb-3")
+        elif manual_status == "Faulty":
+            return dbc.Alert([
+                html.I(className="fas fa-exclamation-triangle me-2"),
+                html.Strong("Station Reporting Issues:"),
+                html.Span("This station is experiencing technical issues. Data may be unreliable.", className="ms-2")
+            ], color="danger", className="mb-3")
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error checking station status: {e}")
+        return None
 
 
 # show step‐controls only on Spectra tab

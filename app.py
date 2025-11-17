@@ -36,7 +36,7 @@ app.layout = dbc.Container(
             className="maccess-navbar navbar-visible",
         ),
         dcc.Location(id="url", refresh=False),
-        dbc.Container(dash.page_container, className="py-2 dashboard-shell", fluid=True),
+        dbc.Container(dash.page_container, className="dashboard-shell", fluid=True, style={"paddingTop": "0.5rem"}),
     ],
     fluid=True,
 )

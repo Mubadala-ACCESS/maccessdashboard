@@ -56,14 +56,7 @@ station_map = StationMap(mongo_uri=MONGO_URI, db_name=DB_NAME)
 layout = dbc.Container(
     [
         dcc.Location(id="url", refresh=False),
-        # Fixed sidebar toggle button
-        html.Button(
-            ">",
-            id="landing-controls-toggle",
-            n_clicks=0,
-            className="sidebar-toggle-button collapsed",
-        ),
-        # Fixed sidebar panel
+        # Fixed sidebar panel - always visible
         html.Div(
             dbc.Card(
                 dbc.CardBody(
@@ -152,7 +145,7 @@ layout = dbc.Container(
                 style={"marginTop": "0", "marginBottom": "0", "border": "none", "height": "100%"},
             ),
             id="landing-controls-sidebar",
-            className="sidebar-panel-fixed collapsed",
+            className="sidebar-panel-fixed",
         ),
         html.Section(
             html.Div(
@@ -177,7 +170,7 @@ layout = dbc.Container(
                     ),
                 ],
                 id="landing-main-frame",
-                className="landing-main-frame sidebar-closed",
+                className="landing-main-frame",
             ),
             className="landing-main-section",
         ),
@@ -219,38 +212,6 @@ dash.clientside_callback(
     Output("search-icon", "className"),
     Input("search-input", "value"),
 )
-
-
-@dash.callback(
-    Output("landing-controls-sidebar", "className"),
-    Output("landing-controls-toggle", "children"),
-    Output("landing-controls-toggle", "className"),
-    Output("landing-main-frame", "className"),
-    Input("landing-controls-toggle", "n_clicks"),
-    State("landing-controls-sidebar", "className"),
-)
-def toggle_landing_controls(n_clicks, current_class):
-    if n_clicks is None or n_clicks == 0:
-        # Initial state: sidebar collapsed
-        return "sidebar-panel-fixed collapsed", ">", "sidebar-toggle-button collapsed", "landing-main-frame sidebar-closed"
-
-    # Check if sidebar is currently collapsed
-    is_collapsed = "collapsed" in current_class
-    
-    if is_collapsed:
-        # Expand sidebar
-        sidebar_class = "sidebar-panel-fixed"
-        arrow = "<"
-        button_class = "sidebar-toggle-button"
-        frame_class = "landing-main-frame sidebar-open"
-    else:
-        # Collapse sidebar
-        sidebar_class = "sidebar-panel-fixed collapsed"
-        arrow = ">"
-        button_class = "sidebar-toggle-button collapsed"
-        frame_class = "landing-main-frame sidebar-closed"
-    
-    return sidebar_class, arrow, button_class, frame_class
 
 
 @dash.callback(
