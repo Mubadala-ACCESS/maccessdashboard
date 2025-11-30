@@ -184,7 +184,44 @@ layout = dbc.Container([
     ],
     id="fidas-download-modal", is_open=False),
 
-    dcc.Download(id="fidas-download-data")
+    dcc.Download(id="fidas-download-data"),
+
+    # Maintenance / No Data Modal
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Station Status")),
+            dbc.ModalBody(
+                [
+                    html.Div(
+                        [
+                            html.I(className="fas fa-tools fa-3x mb-3", style={"color": "#f7a046"}),
+                            html.H4("Device Under Maintenance", className="mb-3"),
+                            html.P(
+                                "This station has not reported data in the last 6 hours. "
+                                "It is currently under maintenance or experiencing connectivity issues."
+                            ),
+                            html.P(
+                                "You can still view historical data by selecting a different time range.",
+                                className="text-muted small",
+                            ),
+                        ],
+                        className="text-center",
+                    )
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "View Historical Data", id="maintenance-modal-close", className="ms-auto", n_clicks=0
+                )
+            ),
+        ],
+        id="maintenance-modal",
+        is_open=False,
+        centered=True,
+        backdrop="static",
+        keyboard=False,
+        contentClassName="border border-secondary shadow-lg",
+    ),
 ], fluid=True, className="dashboard-shell", style={"marginTop": "-50px"})
 
 
@@ -619,3 +656,38 @@ def _toggle_modal(o,c,is_open):
 def _dl_csv(n, dr, params):
     df = fidas.fetch_time_series(dr, params, "None")
     return dcc.send_data_frame(df.to_csv, "fidas_data.csv", index=False)
+
+@dash.callback(
+    Output("maintenance-modal", "is_open"),
+    [Input("url", "pathname"), Input("maintenance-modal-close", "n_clicks")],
+    State("maintenance-modal", "is_open")
+)
+def manage_maintenance_modal(pathname, close_clicks, is_open):
+    """
+    Show maintenance modal if no data in past 6 hours.
+    """
+    ctx = callback_context
+    if not ctx.triggered:
+        # initial load logic handled by url input usually, 
+        # but if triggered is empty we can check pathname if present
+        trigger_id = "url.pathname" if pathname else None
+    else:
+        trigger_id = ctx.triggered[0]["prop_id"]
+    
+    # close button clicked
+    if trigger_id == "maintenance-modal-close.n_clicks":
+        return False
+        
+    # URL changed / Page Load
+    if trigger_id == "url.pathname" or (pathname and not is_open and close_clicks == 0):
+        # if we have recent data (past 6H)
+        # reuse the fidas graph object logic
+        try:
+            recent_times = fidas.list_datetimes("6H")
+            if not recent_times:
+                return True
+        except Exception as e:
+            print(f"Error checking recent data for modal: {e}")
+            return False
+            
+    return is_open
