@@ -304,18 +304,29 @@ def update_filters(search_term, privacy_filter, type_filter, status_filter):
     State("metadata-modal", "is_open"),
 )
 def toggle_metadata_modal(meta_clicks, close_clicks, is_open):
-    # Prevent auto-open on page load
-    if (not meta_clicks or sum(meta_clicks) == 0) and close_clicks == 0:
+    ctx = callback_context
+    if not ctx.triggered:
         return False, no_update
 
-    trigger = callback_context.triggered[0]["prop_id"]
+    trigger = ctx.triggered[0]["prop_id"]
+
+    # 1. Close Button Clicked
     if trigger == "close-modal.n_clicks":
         return False, no_update
 
+    # 2. Metadata Button Clicked
+    # If no buttons have been clicked (or they were just recreated with 0 clicks), do not open.
+    # This prevents the modal from popping up when the map is re-rendered (e.g., on filter change).
+    if not meta_clicks or all(click == 0 for click in meta_clicks):
+        return False, no_update
+
     # Parse which metadata button was clicked
-    raw = trigger.split(".")[0]
-    info = json.loads(raw)
-    sid, dev = info["station"], info["device"]
+    try:
+        raw = trigger.split(".")[0]
+        info = json.loads(raw)
+        sid, dev = info["station"], info["device"]
+    except (ValueError, json.JSONDecodeError, KeyError, IndexError):
+        return False, no_update
 
     # Fetch station list & lookup by Station ID
     all_stations = station_map.fetch_station_data()
