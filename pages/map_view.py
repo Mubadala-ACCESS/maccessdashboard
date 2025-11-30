@@ -252,7 +252,46 @@ def update_filters(search_term, privacy_filter, type_filter, status_filter):
         data = [s for s in data if s["Status"] == status_filter]
 
     if not data:
-        return html.Div("No stations found")
+        # Instead of returning plain text, return an empty map with the no-data overlay
+        empty_map = station_map.create_map([], center=[24.53, 54.43], zoom=8)
+        
+        overlay = html.Div(
+            [
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("No Stations Found"), close_button=False),
+                        dbc.ModalBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="fas fa-search fa-3x mb-3 text-muted"),
+                                        html.H4("No Matching Stations", className="mb-3"),
+                                        html.P(
+                                            "No stations matched your current search criteria or filters."
+                                        ),
+                                        html.P(
+                                            "Try adjusting your search terms or filters to see more results.",
+                                            className="text-muted small",
+                                        ),
+                                    ],
+                                    className="text-center",
+                                )
+                            ]
+                        ),
+                    ],
+                    is_open=True,
+                    centered=True,
+                    backdrop=False,
+                    keyboard=False,
+                    fade=True,
+                    contentClassName="border border-secondary shadow-lg",
+                    style={"position": "absolute", "zIndex": "1000"} # Ensure it sits on top of the map container
+                ),
+                empty_map
+            ],
+            style={"position": "relative", "height": "100%", "width": "100%"}
+        )
+        return overlay
 
     return station_map.create_map(data)
 

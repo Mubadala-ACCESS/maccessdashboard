@@ -72,7 +72,16 @@ class StationMap:
             return None
         return float(np.mean(lats)), float(np.mean(longs))
 
-    def create_map(self, station_data: List[Dict[str, str]]):
+    def create_map(self, station_data: List[Dict[str, str]], center=None, zoom=None):
+        if not station_data:
+             # Return an empty map if no data is provided
+             return dl.Map(
+                children=[dl.TileLayer()],
+                style={"height": "100%", "width": "100%"},
+                center=center or [24.53, 54.43],
+                zoom=zoom or 8
+            )
+
         for s in station_data:
             s["true_lat"] = s["Latitude"]
             s["true_lon"] = s["Longitude"]
