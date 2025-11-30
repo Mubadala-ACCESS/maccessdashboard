@@ -220,8 +220,31 @@ class StationMap:
                 children=dl.Popup([popup])
             ))
 
-        # Fixed map view without automatic zoom
-        map_args = {"center": [24.53, 54.43], "zoom": 8}
+        # Adaptive bounds if markers exist
+        map_args = {}
+        if active:
+            # Extract latitudes and longitudes from active markers
+            lats = [p[0] for p in active]
+            lons = [p[1] for p in active]
+
+            min_lat, max_lat = min(lats), max(lats)
+            min_lon, max_lon = min(lons), max(lons)
+
+            # Add padding (approx 10% of the range)
+            lat_pad = (max_lat - min_lat) * 0.1 if max_lat != min_lat else 0.05
+            lon_pad = (max_lon - min_lon) * 0.1 if max_lon != min_lon else 0.05
+            
+            # If single point, provide default padding
+            if lat_pad == 0: lat_pad = 0.05
+            if lon_pad == 0: lon_pad = 0.05
+
+            map_args["bounds"] = [
+                [min_lat - lat_pad, min_lon - lon_pad],
+                [max_lat + lat_pad, max_lon + lon_pad]
+            ]
+        else:
+             # Fallback to fixed center if no active markers (should be rare due to empty check above)
+             map_args = {"center": [24.53, 54.43], "zoom": 8}
 
         return dl.Map(
             children=[dl.TileLayer(), dl.LayerGroup(markers)],
