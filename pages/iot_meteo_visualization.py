@@ -178,7 +178,44 @@ layout = dbc.Container([
             dbc.Button("Close", id="close-download-modal", color="secondary")
         ])
     ], id="download-modal", is_open=False),
-    dcc.Download(id="download-data")
+    dcc.Download(id="download-data"),
+    
+    # Maintenance / No Data Modal
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Station Status")),
+            dbc.ModalBody(
+                [
+                    html.Div(
+                        [
+                            html.I(className="fas fa-tools fa-3x mb-3", style={"color": "#f7a046"}),
+                            html.H4("Device Under Maintenance", className="mb-3"),
+                            html.P(
+                                "This station has not reported data in the last 6 hours. "
+                                "It is currently under maintenance or experiencing connectivity issues."
+                            ),
+                            html.P(
+                                "You can still view historical data by selecting a different time range.",
+                                className="text-muted small",
+                            ),
+                        ],
+                        className="text-center",
+                    )
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "View Historical Data", id="iot-meteo-maintenance-modal-close", className="ms-auto", n_clicks=0
+                )
+            ),
+        ],
+        id="iot-meteo-maintenance-modal",
+        is_open=False,
+        centered=True,
+        backdrop="static",
+        keyboard=False,
+        contentClassName="border border-secondary shadow-lg",
+    ),
 ], fluid=True, className="dashboard-shell", style={"marginTop": "-50px"})
 
 @callback(
@@ -569,9 +606,9 @@ def add_location_info(df, station_num):
     retrieve location information (long and lat) and add them as "Longitude" and "Latitude" columns.
     """
     try:
-        client = MongoClient("mongodb://localhost:27017/")
-        db = client["all_stations_db"]
-        collection = db["stations_info"]
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
+        collection = db[STATIONS_INFO]
         doc = collection.find_one({"station_num": int(station_num)})
         client.close()
         if doc and "long" in doc and "lat" in doc:
@@ -580,4 +617,70 @@ def add_location_info(df, station_num):
     except Exception as e:
         print(f"Error retrieving location info: {e}")
     return df
+
+
+@callback(
+    Output("iot-meteo-maintenance-modal", "is_open"),
+    [Input("url", "pathname"), Input("iot-meteo-maintenance-modal-close", "n_clicks")],
+    State("iot-meteo-maintenance-modal", "is_open")
+)
+def manage_maintenance_modal(pathname, close_clicks, is_open):
+    """
+    Show maintenance modal if no data in past 6 hours.
+    """
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        trigger_id = "url.pathname" if pathname else None
+    else:
+        trigger_id = ctx.triggered[0]["prop_id"]
+    
+    # close button clicked
+    if trigger_id == "iot-meteo-maintenance-modal-close.n_clicks":
+        return False
+        
+    # URL changed / Page Load
+    if trigger_id == "url.pathname" or (pathname and not is_open and close_clicks == 0):
+        parts = pathname.strip("/").split("/")
+        if len(parts) < 3:
+            return is_open
+        
+        device_type = parts[1].lower()
+        station_num = parts[2]
+        
+        try:
+            from datetime import datetime, timedelta, timezone
+            
+            # Identify correct collection and time field
+            client = MongoClient(MONGO_URI)
+            db = client[DB_NAME]
+            
+            if device_type in ["meteostation", "meteorological"]:
+                data_collection = db[config.get('mongodb', 'f1_meteo_collection')]
+                time_field = "Timestamp"
+            else:
+                if station_num.isdigit():
+                    data_collection = db[f"station{station_num}"]
+                    time_field = "datetime"
+                else:
+                    client.close()
+                    return is_open
+
+            # Check for recent data (within last 6 hours)
+            now = datetime.now(timezone.utc)
+            six_hours_ago = now - timedelta(hours=6)
+            
+            recent_data = data_collection.find_one(
+                {time_field: {"$gte": six_hours_ago}},
+                sort=[(time_field, -1)]
+            )
+            client.close()
+            
+            if not recent_data:
+                return True
+                
+        except Exception as e:
+            print(f"Error checking recent data for modal: {e}")
+            return False
+            
+    return is_open
 

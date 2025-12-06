@@ -8,6 +8,7 @@ app = dash.Dash(
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     use_pages=True,
     title="Station Monitoring Dashboard",
+    suppress_callback_exceptions=True
 )
 
 app._favicon = "favicon.png" 

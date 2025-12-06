@@ -143,7 +143,44 @@ layout = dbc.Container([
             dbc.Button("Close",            id="buoy-download-close")
         ])
     ], id="buoy-download-modal", is_open=False),
-    dcc.Download(id="buoy-download-data")
+    dcc.Download(id="buoy-download-data"),
+    
+    # Maintenance / No Data Modal
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Station Status")),
+            dbc.ModalBody(
+                [
+                    html.Div(
+                        [
+                            html.I(className="fas fa-tools fa-3x mb-3", style={"color": "#f7a046"}),
+                            html.H4("Device Under Maintenance", className="mb-3"),
+                            html.P(
+                                "This station has not reported data in the last 6 hours. "
+                                "It is currently under maintenance or experiencing connectivity issues."
+                            ),
+                            html.P(
+                                "You can still view historical data by selecting a different time range.",
+                                className="text-muted small",
+                            ),
+                        ],
+                        className="text-center",
+                    )
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "View Historical Data", id="buoy-maintenance-modal-close", className="ms-auto", n_clicks=0
+                )
+            ),
+        ],
+        id="buoy-maintenance-modal",
+        is_open=False,
+        centered=True,
+        backdrop="static",
+        keyboard=False,
+        contentClassName="border border-secondary shadow-lg",
+    ),
 ], fluid=True, style={"marginTop": "-50px"})
 
 
@@ -370,3 +407,51 @@ def _toggle_modal(o, c, is_open):
 def _dl_csv(n, dr, params):
     df = buoy.fetch_time_series(dr, params, "None")
     return dcc.send_data_frame(df.to_csv, "buoy01_data.csv", index=False)
+
+
+@dash.callback(
+    Output("buoy-maintenance-modal", "is_open"),
+    [Input("url", "pathname"), Input("buoy-maintenance-modal-close", "n_clicks")],
+    State("buoy-maintenance-modal", "is_open")
+)
+def manage_maintenance_modal(pathname, close_clicks, is_open):
+    """
+    Show maintenance modal if no data in past 6 hours.
+    """
+    ctx = callback_context
+    if not ctx.triggered:
+        trigger_id = "url.pathname" if pathname else None
+    else:
+        trigger_id = ctx.triggered[0]["prop_id"]
+    
+    # close button clicked
+    if trigger_id == "buoy-maintenance-modal-close.n_clicks":
+        return False
+        
+    # URL changed / Page Load
+    if trigger_id == "url.pathname" or (pathname and not is_open and close_clicks == 0):
+        try:
+            from datetime import datetime, timedelta, timezone
+            
+            # Check for recent data (within last 6 hours)
+            client = MongoClient(MONGO_URI)
+            db = client[DB_NAME]
+            buoy_collection = db[config.get('mongodb', 'buoy_01_collection')]
+            
+            now = datetime.now(timezone.utc)
+            six_hours_ago = now - timedelta(hours=6)
+            
+            recent_data = buoy_collection.find_one(
+                {"datetime": {"$gte": six_hours_ago}},
+                sort=[("datetime", -1)]
+            )
+            client.close()
+            
+            if not recent_data:
+                return True
+                
+        except Exception as e:
+            print(f"Error checking recent data for modal: {e}")
+            return False
+            
+    return is_open
