@@ -129,10 +129,7 @@ layout = dbc.Container(
                                     options=[
                                         {"label": "All", "value": "all"},
                                         {"label": "Online", "value": "Online"},
-                                        {"label": "Offline", "value": "Offline"},
-                                        {"label": "Maintenance", "value": "Maintenance"},
-                                        {"label": "Faulty", "value": "Faulty"},
-                                        {"label": "Decommissioned", "value": "Decommissioned"},
+                                        {"label": "Under Maintenance", "value": "Maintenance"},
                                     ],
                                     value="all",
                                 ),
