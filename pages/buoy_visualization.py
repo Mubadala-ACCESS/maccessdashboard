@@ -156,8 +156,7 @@ layout = dbc.Container([
                             html.I(className="fas fa-tools fa-3x mb-3", style={"color": "#f7a046"}),
                             html.H4("Device Under Maintenance", className="mb-3"),
                             html.P(
-                                "This station has not reported data in the last 6 hours. "
-                                "It is currently under maintenance or experiencing connectivity issues."
+                                "This station is currently under maintenance."
                             ),
                             html.P(
                                 "You can still view historical data by selecting a different time range.",
