@@ -5,3 +5,4 @@ dash-daq
 pymongo
 pandas
 numpy
+gsw
