@@ -128,7 +128,7 @@ layout = dbc.Container(
                                     id="status-dropdown",
                                     options=[
                                         {"label": "All", "value": "all"},
-                                        {"label": "Active", "value": "Online"},
+                                        {"label": "Active", "value": "Active"},
                                         {"label": "Under Maintenance", "value": "Maintenance"},
                                         {"label": "Decommissioned", "value": "decommissioned"},
                                     ],

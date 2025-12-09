@@ -2,15 +2,18 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import html, dcc, Input, Output, State, callback_context
 from graphs.buoy_graphs import BuoyGraphs
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 import configparser
 import os
+import pandas as pd
 
 # Load configuration
 config = configparser.ConfigParser()
 config_path = os.path.join(os.path.dirname(__file__), '../config', 'config.ini')
 config.read(config_path)
 
+# Retrieve MongoDB settings
 MONGO_URI = config.get('mongodb', 'uri')
 DB_NAME = config.get('mongodb', 'database')
 STATIONS_INFO = config.get('mongodb', 'stations_info_collection')
@@ -37,59 +40,56 @@ DATE_RANGE_OPTIONS = [
 
 layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
-    html.Div(id="buoy-station-name-header", style={"marginBottom": "0.5rem", "marginTop": "0"}),
-    html.Div(id="buoy-status-alert", style={"marginBottom": "0.5rem"}),
+    
+    # Station Status Alert
+    html.Div(id="buoy-station-status-alert", style={"marginBottom": "0.5rem"}),
 
     dbc.Row([
         # Controls Column
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.Div(id="buoy-controls-timeseries", children=[
-                    html.Label("Display Period", className="maccess-panel-title mb-2"),
+                    html.Label("Display Period", style={"font-weight": "bold"}),
                     dcc.Dropdown(
                         id="buoy-date-range",
                         options=DATE_RANGE_OPTIONS,
-                        value="1D",
-                        className="maccess-dropdown",
+                        value="1D"
                     ),
-                    html.Hr(className="maccess-divider"),
-                    html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small mb-2"),
+                    html.Hr(style={"border-top": "2px solid purple"}),
+                    html.Label("Select Parameters", style={"font-weight": "bold"}),
                     dcc.Checklist(
                         id="buoy-param-checklist",
-                        className="maccess-scrollable list-unstyled",
+                        style={"height": "20vh", "overflow-y": "auto"},
                         options=[{"label": buoy.param_labels[p], "value": p} for p in buoy.scalar_params],
-                        value=buoy.scalar_params,
+                        value=buoy.scalar_params
                     ),
                 ]),
                 html.Div(id="buoy-controls-profile", style={"display": "none"}, children=[
-                    html.Label("Display Period", className="maccess-panel-title mb-2"),
+                    html.Label("Display Period", style={"font-weight": "bold"}),
                     dcc.Dropdown(
                         id="buoy-profile-date-range",
                         options=DATE_RANGE_OPTIONS,
-                        value="1D",
-                        className="maccess-dropdown",
+                        value="1D"
                     ),
-                    html.Hr(className="maccess-divider"),
-                    html.Label("Select Parameters", className="fw-semibold text-uppercase text-muted small mb-2"),
+                    html.Hr(style={"border-top": "2px solid purple"}),
+                    html.Label("Select Parameters", style={"font-weight": "bold"}),
                     dcc.Checklist(
                         id="buoy-profile-param-checklist",
-                        className="maccess-scrollable list-unstyled",
+                        style={"height": "20vh", "overflow-y": "auto"},
                         options=[{"label": buoy.param_labels[p], "value": p} for p in buoy.profile_params],
-                        value=buoy.profile_params,
+                        value=buoy.profile_params
                     ),
                 ]),
-                html.Hr(className="maccess-divider"),
-                dbc.Button(
-                    "Download Data",
-                    id="buoy-download-open",
-                    color="primary",
-                    className="w-100 rounded-md",
-                ),
+                html.Hr(style={"border-top": "2px solid purple"}),
+                dbc.Button("Download Data", id="buoy-download-open", color="primary", className="w-100"),
             ])
-            ], className="mb-2 maccess-card maccess-scrollable",
+        ], className="mb-2",
             style={
+                "border": "3px solid purple",
+                "box-shadow": "2px 2px 5px lightgrey",
                 "height": "85vh",
-            }), width=3, style={"padding": "5px"}),
+                "overflow-y": "auto"
+            }), width=3, style={"padding": "10px"}),
 
         # Graphs Column
         dbc.Col(dbc.Card([
@@ -98,30 +98,22 @@ layout = dbc.Container([
                     dcc.Tab(label="Atmospheric Parameters", value="tab-timeseries"),
                     dcc.Tab(label="Vertical Profiles",       value="tab-profile"),
                 ]),
-                dcc.Loading(
-                    children=html.Div(
-                        id="buoy-tab-content",
-                        className="maccess-scrollable",
-                        style={
-                            "height": "92vh",
-                            "padding": "0",
-                            "scrollSnapType": "y mandatory"
-                        }
-                    ),
-                    type="default",
-                    className="w-100 h-100"
-                )
-            ], style={"padding": "0"})
-        ], className="mb-2 maccess-card",
+                html.Div(id="buoy-tab-content", style={
+                    "height": "75vh", "overflow-y": "auto", "padding": "10px"
+                })
+            ])
+        ], className="mb-2",
             style={
-                "height": "92vh",
+                "border": "3px solid purple",
+                "box-shadow": "2px 2px 5px lightgrey",
+                "height": "85vh",
                 "overflow": "hidden"
-            }), width=9, style={"padding": "5px"}),
+            }), width=9, style={"padding": "10px"}),
     ], class_name="mb-3", align="center"),
 
     # Download Modal
     dbc.Modal([
-        dbc.ModalHeader(dbc.ModalTitle("Download Buoy Data")),
+        dbc.ModalHeader("Download Buoy Data"),
         dbc.ModalBody([
             html.Label("Select Date Range:", style={"font-weight": "bold"}),
             dcc.Dropdown(
@@ -156,7 +148,8 @@ layout = dbc.Container([
                             html.I(className="fas fa-tools fa-3x mb-3", style={"color": "#f7a046"}),
                             html.H4("Device Under Maintenance", className="mb-3"),
                             html.P(
-                                "This station is currently under maintenance."
+                                id="buoy-maintenance-modal-text",
+                                children="This buoy station is currently under maintenance or not transmitting data."
                             ),
                             html.P(
                                 "You can still view historical data by selecting a different time range.",
@@ -180,155 +173,219 @@ layout = dbc.Container([
         keyboard=False,
         contentClassName="border border-secondary shadow-lg",
     ),
-], fluid=True, style={"marginTop": "-50px"})
+], fluid=True)
 
 
 # Callbacks
 
 @dash.callback(
-    Output("buoy-station-name-header", "children"),
-    Input("url", "pathname")
+    Output("buoy-station-status-alert", "children"),
+    [Input("url", "pathname"), Input("buoy-tabs", "value")]
 )
-def update_buoy_station_name(pathname):
-    """Display the station name at the top of the page"""
-    if not pathname:
-        return ""
-    
-    parts = pathname.strip("/").split("/")
-    if len(parts) < 3:
-        return ""
-    
-    station_num = parts[2]
-    
-    try:
-        client = MongoClient(MONGO_URI)
-        db = client[DB_NAME]
-        collection = db[STATIONS_INFO]
-        
-        doc = collection.find_one({"type": "Buoy"})
-        station_name = doc.get("name", "Buoy Station") if doc else "Buoy Station"
-        station_status = doc.get("status", "Unknown") if doc else "Unknown"
-        
-        client.close()
-        
-        # Create status badge if station is under maintenance or other non-operational status
-        status_badge = None
-        if station_status in ["Maintenance", "Faulty", "Offline", "Decommissioned"]:
-            status_colors = {
-                "Maintenance": "#f7a046",  # warning orange
-                "Faulty": "#e65252",       # danger red
-                "Offline": "#8f90a0",      # gray
-                "Decommissioned": "#8f90a0"  # gray
-            }
-            status_badge = html.Span(
-                station_status.upper(),
-                style={
-                    "backgroundColor": status_colors.get(station_status, "#f7a046"),
-                    "color": "white",
-                    "padding": "0.35rem 0.75rem",
-                    "borderRadius": "4px",
-                    "fontSize": "0.85rem",
-                    "fontWeight": "700",
-                    "letterSpacing": "0.05em",
-                    "marginLeft": "1rem",
-                    "verticalAlign": "middle"
-                }
-            )
-        
-        return html.Div([
-            html.H3(
-                [station_name, status_badge] if status_badge else station_name,
-                className="maccess-panel-title",
-                style={
-                    "fontSize": "1.75rem",
-                    "marginTop": "0",
-                    "marginBottom": "0.25rem",
-                    "color": "var(--color-nyu-violet-dark)",
-                    "fontFamily": "var(--font-serif)"
-                }
-            )
-        ])
-    except Exception as e:
-        print(f"Error fetching station name: {e}")
-        return ""
-
-
-@dash.callback(
-    Output("buoy-status-alert", "children"),
-    Input("url", "pathname")
-)
-def update_buoy_status_alert(pathname):
-    """Display a prominent alert banner if station has no recent data or has status issues"""
+def update_buoy_status_alert(pathname, active_tab):
+    """Display a prominent alert banner based on current tab and data availability"""
     if not pathname:
         return None
     
+    parts = pathname.strip("/").split("/")
+    if len(parts) < 3:
+        return None
+    
+    station_num = parts[2]
+    
+    # Default to timeseries if active_tab is None
+    if active_tab is None:
+        active_tab = "tab-timeseries"
+    
+    print(f"DEBUG: Checking status for tab: {active_tab}")
+    
     try:
-        from datetime import datetime, timedelta, timezone
-        
         client = MongoClient(MONGO_URI)
         db = client[DB_NAME]
         stations_collection = db[STATIONS_INFO]
         
-        # Get station info and manual status
+        # Get buoy info from stations_info collection
         doc = stations_collection.find_one({"type": "Buoy"})
         manual_status = doc.get("status", "Unknown") if doc else "Unknown"
-        
-        # Check for recent data (within last 24 hours)
-        buoy_collection = db[config.get('mongodb', 'buoy_01_collection')]
-        now = datetime.now(timezone.utc)
-        twenty_four_hours_ago = now - timedelta(hours=24)
-        
-        try:
-            recent_data = buoy_collection.find_one(
-                {"datetime": {"$gte": twenty_four_hours_ago}},
-                sort=[("datetime", -1)]
-            )
-            has_recent_data = recent_data is not None
-        except Exception:
-            has_recent_data = False
-        
         client.close()
+        
+        # Calculate 6 hours ago threshold
+        now = datetime.now(timezone.utc)
+        six_hours_ago = now - timedelta(hours=6)
+        
+        # Check data availability based on active tab
+        if active_tab == "tab-timeseries":
+            # Check atmospheric data
+            try:
+                test_df = buoy.fetch_time_series("6H", buoy.scalar_params[:1], agg="None")
+                
+                if not test_df.empty and 'datetime' in test_df.columns:
+                    # Get the most recent timestamp
+                    max_time = pd.to_datetime(test_df['datetime']).max()
+                    # Make sure it's timezone aware
+                    if max_time.tzinfo is None:
+                        max_time = max_time.tz_localize('UTC')
+                    
+                    has_recent_data = max_time >= six_hours_ago
+                    print(f"DEBUG: Atmospheric - max_time: {max_time}, threshold: {six_hours_ago}, has_recent: {has_recent_data}")
+                else:
+                    has_recent_data = False
+                    print(f"DEBUG: Atmospheric - No data or no datetime column")
+                
+                data_type = "atmospheric"
+            except Exception as e:
+                print(f"Error fetching atmospheric data: {e}")
+                import traceback
+                traceback.print_exc()
+                has_recent_data = False
+                data_type = "atmospheric"
+        else:
+            # Check profile data
+            try:
+                times, docs = buoy.fetch_profiles("6H")
+                
+                if times and len(times) > 0:
+                    # Convert times to datetime and find most recent
+                    max_time = max(times)
+                    # Make sure it's timezone aware
+                    if max_time.tzinfo is None:
+                        max_time = max_time.replace(tzinfo=timezone.utc)
+                    
+                    has_recent_data = max_time >= six_hours_ago
+                    print(f"DEBUG: Profile - max_time: {max_time}, threshold: {six_hours_ago}, has_recent: {has_recent_data}")
+                else:
+                    has_recent_data = False
+                    print(f"DEBUG: Profile - No times available")
+                
+                data_type = "profile"
+            except Exception as e:
+                print(f"Error fetching profile data: {e}")
+                import traceback
+                traceback.print_exc()
+                has_recent_data = False
+                data_type = "profile"
         
         # Determine status: prioritize lack of recent data, then manual status
         if not has_recent_data:
+            data_label = "atmospheric data" if data_type == "atmospheric" else "vertical profile data"
+            
+            # No data in last 6 hours
             if manual_status == "Maintenance":
                 return dbc.Alert([
                     html.I(className="fas fa-tools me-2"),
-                    html.Strong("Station Under Maintenance:"),
-                    html.Span("This station is currently undergoing maintenance. No data received in the last 24 hours.", className="ms-2")
+                    html.Strong("Buoy Under Maintenance:"),
+                    html.Span(f" This buoy station is currently undergoing maintenance. No {data_label} received in the last 6 hours.", className="ms-2")
                 ], color="warning", className="mb-3")
             elif manual_status == "Decommissioned":
                 return dbc.Alert([
                     html.I(className="fas fa-archive me-2"),
-                    html.Strong("Station Decommissioned:"),
-                    html.Span("This station has been decommissioned. Only historical data is available.", className="ms-2")
+                    html.Strong("Buoy Decommissioned:"),
+                    html.Span(f" This buoy station has been decommissioned. Only historical {data_label} is available.", className="ms-2")
                 ], color="secondary", className="mb-3")
             else:
+                # No manual status, but no recent data
                 return dbc.Alert([
                     html.I(className="fas fa-exclamation-triangle me-2"),
-                    html.Strong("No Recent Data"),
-                    html.Span("This station has not transmitted data in the last 24 hours. It may be offline or experiencing technical issues.", className="ms-2")
+                    html.Strong("No Recent Data:"),
+                    html.Span(f" This buoy has not transmitted {data_label} in the last 6 hours. It may be offline or experiencing technical issues.", className="ms-2")
                 ], color="warning", className="mb-3")
         
         # Has recent data, check manual status only
         if manual_status == "Maintenance":
             return dbc.Alert([
                 html.I(className="fas fa-tools me-2"),
-                html.Strong("Station Under Maintenance:"),
-                html.Span("This station is currently undergoing maintenance. Data may be limited.", className="ms-2")
+                html.Strong("Buoy Under Maintenance:"),
+                html.Span(" This buoy station is currently undergoing maintenance. Data may be limited.", className="ms-2")
             ], color="warning", className="mb-3")
         elif manual_status == "Faulty":
             return dbc.Alert([
                 html.I(className="fas fa-exclamation-triangle me-2"),
-                html.Strong("Station Reporting Issues:"),
-                html.Span("This station is experiencing technical issues. Data may be unreliable.", className="ms-2")
+                html.Strong("Buoy Reporting Issues:"),
+                html.Span(" This buoy is experiencing technical issues. Data may be unreliable.", className="ms-2")
             ], color="danger", className="mb-3")
         
+        # Buoy is operational with recent data
         return None
         
     except Exception as e:
-        print(f"Error checking station status: {e}")
+        print(f"Error checking buoy status: {e}")
+        import traceback
+        traceback.print_exc()
         return None
+
+
+@dash.callback(
+    Output("buoy-maintenance-modal", "is_open"),
+    [Input("url", "pathname"), Input("buoy-maintenance-modal-close", "n_clicks"), Input("buoy-tabs", "value")],
+    State("buoy-maintenance-modal", "is_open")
+)
+def manage_buoy_maintenance_modal(pathname, close_clicks, active_tab, is_open):
+    """
+    Show maintenance modal if no data in past 6 hours based on current tab.
+    """
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        trigger_id = "url.pathname" if pathname else None
+    else:
+        trigger_id = ctx.triggered[0]["prop_id"]
+    
+    # close button clicked
+    if trigger_id == "buoy-maintenance-modal-close.n_clicks":
+        return False
+    
+    # Default to timeseries if active_tab is None
+    if active_tab is None:
+        active_tab = "tab-timeseries"
+        
+    # URL changed or Tab changed / Page Load
+    if trigger_id in ["url.pathname", "buoy-tabs.value"] or (pathname and not is_open and close_clicks == 0):
+        parts = pathname.strip("/").split("/")
+        if len(parts) < 3:
+            return is_open
+        
+        station_num = parts[2]
+        
+        try:
+            # Calculate 6 hours ago threshold
+            now = datetime.now(timezone.utc)
+            six_hours_ago = now - timedelta(hours=6)
+            
+            # Check data availability based on active tab
+            if active_tab == "tab-timeseries":
+                # Check atmospheric data timestamp
+                test_df = buoy.fetch_time_series("6H", buoy.scalar_params[:1], agg="None")
+                
+                if not test_df.empty and 'datetime' in test_df.columns:
+                    max_time = pd.to_datetime(test_df['datetime']).max()
+                    if max_time.tzinfo is None:
+                        max_time = max_time.tz_localize('UTC')
+                    has_recent_data = max_time >= six_hours_ago
+                else:
+                    has_recent_data = False
+            else:
+                # Check profile data timestamp
+                times, docs = buoy.fetch_profiles("6H")
+                
+                if times and len(times) > 0:
+                    max_time = max(times)
+                    if max_time.tzinfo is None:
+                        max_time = max_time.replace(tzinfo=timezone.utc)
+                    has_recent_data = max_time >= six_hours_ago
+                else:
+                    has_recent_data = False
+            
+            print(f"DEBUG Modal: Tab={active_tab}, has_recent_data={has_recent_data}")
+            
+            if not has_recent_data:
+                return True
+                
+        except Exception as e:
+            print(f"Error checking recent buoy data for modal: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+            
+    return is_open
 
 
 @dash.callback(
@@ -353,9 +410,6 @@ def _toggle_controls(tab):
 )
 def _render_tab(tab, dr_ts, params_ts, dr_pf, params_pf):
     if tab == "tab-timeseries":
-        # Reverse parameters so newest selections appear on top
-        if params_ts:
-            params_ts = list(reversed(params_ts))
         df = buoy.fetch_time_series(dr_ts, params_ts, agg="None")
         if df.empty:
             return html.Div("No data available.", style={"color": "gray"})
@@ -363,15 +417,12 @@ def _render_tab(tab, dr_ts, params_ts, dr_pf, params_pf):
         return html.Div([
             dcc.Graph(
                 figure=fig,
-                style={"border": "none", "padding": "0", "height": "92vh", "scrollSnapAlign": "start"}
+                style={"border": "2px solid lightgray", "padding": "5px", "height": "40vh"}
             )
             for fig in figs
-        ], style={"display": "flex", "flexDirection": "column", "gap": "0"})
+        ], style={"display": "flex", "flexDirection": "column", "gap": "10px"})
 
     # Vertical Profiles: unpack fetch_profiles() directly
-    # Reverse parameters so newest selections appear on top
-    if params_pf:
-        params_pf = list(reversed(params_pf))
     times, docs = buoy.fetch_profiles(dr_pf)
     if not times or not docs:
         return html.Div("No profile data.", style={"color": "gray"})
@@ -381,9 +432,9 @@ def _render_tab(tab, dr_ts, params_ts, dr_pf, params_pf):
         fig = buoy.create_profile_figure(times, docs, p)
         graphs.append(dcc.Graph(
             figure=fig,
-            style={"border": "none", "padding": "0", "height": "92vh", "scrollSnapAlign": "start"}
+            style={"border": "2px solid lightgray", "padding": "5px", "height": "40vh"}
         ))
-    return html.Div(graphs, style={"display": "flex", "flexDirection": "column", "gap": "0"})
+    return html.Div(graphs, style={"display": "flex", "flexDirection": "column", "gap": "10px"})
 
 
 @dash.callback(
@@ -406,51 +457,3 @@ def _toggle_modal(o, c, is_open):
 def _dl_csv(n, dr, params):
     df = buoy.fetch_time_series(dr, params, "None")
     return dcc.send_data_frame(df.to_csv, "buoy01_data.csv", index=False)
-
-
-@dash.callback(
-    Output("buoy-maintenance-modal", "is_open"),
-    [Input("url", "pathname"), Input("buoy-maintenance-modal-close", "n_clicks")],
-    State("buoy-maintenance-modal", "is_open")
-)
-def manage_maintenance_modal(pathname, close_clicks, is_open):
-    """
-    Show maintenance modal if no data in past 6 hours.
-    """
-    ctx = callback_context
-    if not ctx.triggered:
-        trigger_id = "url.pathname" if pathname else None
-    else:
-        trigger_id = ctx.triggered[0]["prop_id"]
-    
-    # close button clicked
-    if trigger_id == "buoy-maintenance-modal-close.n_clicks":
-        return False
-        
-    # URL changed / Page Load
-    if trigger_id == "url.pathname" or (pathname and not is_open and close_clicks == 0):
-        try:
-            from datetime import datetime, timedelta, timezone
-            
-            # Check for recent data (within last 6 hours)
-            client = MongoClient(MONGO_URI)
-            db = client[DB_NAME]
-            buoy_collection = db[config.get('mongodb', 'buoy_01_collection')]
-            
-            now = datetime.now(timezone.utc)
-            six_hours_ago = now - timedelta(hours=6)
-            
-            recent_data = buoy_collection.find_one(
-                {"datetime": {"$gte": six_hours_ago}},
-                sort=[("datetime", -1)]
-            )
-            client.close()
-            
-            if not recent_data:
-                return True
-                
-        except Exception as e:
-            print(f"Error checking recent data for modal: {e}")
-            return False
-            
-    return is_open
