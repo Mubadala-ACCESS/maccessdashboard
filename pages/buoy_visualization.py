@@ -149,7 +149,7 @@ layout = dbc.Container([
                             html.H4("Device Under Maintenance", className="mb-3"),
                             html.P(
                                 id="buoy-maintenance-modal-text",
-                                children="This buoy station is currently under maintenance or not transmitting data."
+                                children="This station's CTD is currently under maintenance."
                             ),
                             html.P(
                                 "You can still view historical data by selecting a different time range.",
@@ -197,8 +197,6 @@ def update_buoy_status_alert(pathname, active_tab):
     if active_tab is None:
         active_tab = "tab-timeseries"
     
-    print(f"DEBUG: Checking status for tab: {active_tab}")
-    
     try:
         client = MongoClient(MONGO_URI)
         db = client[DB_NAME]
@@ -227,10 +225,8 @@ def update_buoy_status_alert(pathname, active_tab):
                         max_time = max_time.tz_localize('UTC')
                     
                     has_recent_data = max_time >= six_hours_ago
-                    print(f"DEBUG: Atmospheric - max_time: {max_time}, threshold: {six_hours_ago}, has_recent: {has_recent_data}")
                 else:
                     has_recent_data = False
-                    print(f"DEBUG: Atmospheric - No data or no datetime column")
                 
                 data_type = "atmospheric"
             except Exception as e:
@@ -252,10 +248,8 @@ def update_buoy_status_alert(pathname, active_tab):
                         max_time = max_time.replace(tzinfo=timezone.utc)
                     
                     has_recent_data = max_time >= six_hours_ago
-                    print(f"DEBUG: Profile - max_time: {max_time}, threshold: {six_hours_ago}, has_recent: {has_recent_data}")
                 else:
                     has_recent_data = False
-                    print(f"DEBUG: Profile - No times available")
                 
                 data_type = "profile"
             except Exception as e:
@@ -287,7 +281,7 @@ def update_buoy_status_alert(pathname, active_tab):
                 return dbc.Alert([
                     html.I(className="fas fa-exclamation-triangle me-2"),
                     html.Strong("No Recent Data:"),
-                    html.Span(f" This buoy has not transmitted {data_label} in the last 6 hours. It may be offline or experiencing technical issues.", className="ms-2")
+                    html.Span(f" This station is has not transmitted {data_label} in the last 6 hours. It is currently under maintenance.", className="ms-2")
                 ], color="warning", className="mb-3")
         
         # Has recent data, check manual status only
