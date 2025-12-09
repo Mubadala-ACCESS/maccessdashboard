@@ -281,7 +281,7 @@ def update_buoy_status_alert(pathname, active_tab):
                 return dbc.Alert([
                     html.I(className="fas fa-exclamation-triangle me-2"),
                     html.Strong("No Recent Data:"),
-                    html.Span(f" This station is has not transmitted {data_label} in the last 6 hours. It is currently under maintenance.", className="ms-2")
+                    html.Span(f" This station is current under maintenance.", className="ms-2")
                 ], color="warning", className="mb-3")
         
         # Has recent data, check manual status only

@@ -369,7 +369,7 @@ def update_station_status_alert(pathname):
                 return dbc.Alert([
                     html.I(className="fas fa-exclamation-triangle me-2"),
                     html.Strong("No Recent Data:"),
-                    html.Span(" This station has not transmitted data in the last 24 hours. It may be offline or experiencing technical issues.", className="ms-2")
+                    html.Span(" This station is current under maintenance.", className="ms-2")
                 ], color="warning", className="mb-3")
         
         # Has recent data, check manual status only
