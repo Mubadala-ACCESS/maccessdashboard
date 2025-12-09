@@ -1,6 +1,9 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import html, dcc, clientside_callback, Input, Output
+import threading
+from station_status_monitor import check_and_update_status
+
 
 # Initialize Dash app
 app = dash.Dash(
@@ -11,7 +14,9 @@ app = dash.Dash(
     suppress_callback_exceptions=True
 )
 
+
 app._favicon = "favicon.png" 
+
 
 # Define main layout with navigation and page container
 app.layout = dbc.Container(
@@ -41,6 +46,7 @@ app.layout = dbc.Container(
     ],
     fluid=True,
 )
+
 
 # Clientside callback for navbar hide/show on scroll
 clientside_callback(
@@ -100,6 +106,27 @@ clientside_callback(
 )
 
 
+# Background monitor starter function
+def start_station_monitor():
+    """Start the station status monitoring in a background thread."""
+    def monitor_loop():
+        import time
+        print("Station status monitor started in background thread...")
+        while True:
+            try:
+                check_and_update_status()
+            except Exception as e:
+                print(f"Error in station monitor: {e}")
+            time.sleep(300) 
+    
+    monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
+    monitor_thread.start()
+
+
 # Run the application
 if __name__ == "__main__":
+    # Start the background station monitor
+    start_station_monitor()
+    
+    # Run the Dash app
     app.run(debug=True)

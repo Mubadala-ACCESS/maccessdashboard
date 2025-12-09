@@ -355,8 +355,8 @@ def update_station_status_alert(pathname):
             if manual_status == "Maintenance":
                 return dbc.Alert([
                     html.I(className="fas fa-tools me-2"),
-                    html.Strong("Station Under Maintenance:"),
-                    html.Span("This station is currently undergoing maintenance. No data received in the last 24 hours.", className="ms-2")
+                    html.Strong("No Recent Data:"),
+                    html.Span("This station is currently undergoing maintenance.", className="ms-2")
                 ], color="warning", className="mb-3")
             elif manual_status == "Decommissioned":
                 return dbc.Alert([
